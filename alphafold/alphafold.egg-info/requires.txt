@@ -1,0 +1,13 @@
+absl-py
+biopython
+chex
+dm-haiku
+dm-tree
+docker
+immutabledict
+jax
+ml-collections
+numpy
+pandas
+scipy
+tensorflow-cpu
