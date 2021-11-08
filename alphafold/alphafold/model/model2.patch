@@ -1,0 +1,13 @@
+16c16
+< from typing import Any, Mapping, Optional, Union
+---
+> from typing import Any, Mapping, Optional, Union, Tuple
+153c153
+<               ) -> Mapping[str, Any]:
+---
+>               ) -> Tuple[Mapping[str, Any], Tuple[int, float]]:
+163c163,164
+<       A dictionary of model outputs.
+---
+>       A tuple containing a dictionary of model outputs and recycling iteration 
+>       and tolerance.
