@@ -103,8 +103,9 @@ for model_name in monomer_model_names + multimer_model_names:
             features_for_chain = getChainFeatures(
                 sequences=sequences,
                 raw_inputs=raw_inputs_from_sequence,
-                use_templates=args.use_templates
-                custom_a3m_lines=custom_a3m)
+                use_templates=args.use_templates,
+                custom_a3m_lines=custom_a3m,
+                custom_templates_path=args.custom_templates_path)
 
             input_features = getInputFeatures(
                 sequences=sequences,

@@ -25,7 +25,11 @@ from alphafold.common import residue_constants
 from alphafold.data import mmcif_parsing
 from alphafold.data import parsers
 from alphafold.data.tools import kalign
+from alphafold.common import protein
 import numpy as np
+
+import jax
+import jax.numpy as jnp
 
 # Internal import (7716).
 
@@ -984,3 +988,53 @@ class HHSearch:
       with open(hhr_path) as f:
         hhr = f.read()
     return hhr
+
+def get_custom_template_features(template_path):
+
+  def pdb_to_string(pdb_file):
+    lines = []
+    for line in open(pdb_file,"r"):
+      if line[:6] == "HETATM" and line[17:20] == "MSE":
+        line = "ATOM  "+line[6:17]+"MET"+line[20:]
+      if line[:4] == "ATOM":
+        lines.append(line)
+    return "".join(lines)
+
+  files = os.listdir(template_path)
+  files = [file if file[-4:]=='.pdb' for file in files]
+
+  aatype = None
+  atom_masks = None
+  atom_positions = None
+  domain_names = None
+  for file in files:
+    protein_obj = protein.from_pdb_string(
+      pdb_to_string(os.path.join(template_path, file)), chain_id="A")
+    if aatype == None:
+      aatype = jax.nn.one_hot(protein_obj.aatype,22)[:][None]
+    else:
+      aatype = jnp.concatenate(
+        (aatype, jax.nn.one_hot(protein_obj.aatype,22)[:][None]))
+
+    if atom_masks = None:
+      atom_masks = protein_obj.atom_mask[:][None]
+    else:
+      atom_masks = jnp.concatenate(
+        (atom_masks, protein_obj.atom_mask[:][None]))
+    
+    if atom_positions = None:
+      atom_positions = protein_obj.atom_positions[:][None]
+    else:
+      atom_positions = jnp.concatenate(
+        (atom_positions, protein_obj.atom_positions[:][None]))
+      
+    if domain_names = None:
+      domain_names = np.asarray(['None'])
+    else:
+      domain_names = jnp.concatenate(
+        (domain_names, np.asarray(['None'])))
+    
+  template_features = {"template_aatype":aatype,
+                         "template_all_atom_masks": atom_masks,
+                         "template_all_atom_positions": atom_positions,
+                         "template_domain_names": domain_names}
