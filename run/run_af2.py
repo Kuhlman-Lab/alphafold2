@@ -16,7 +16,8 @@ from setup import getAF2Parser, QueryManager
 from features import getMonomerRawInputs, getMultimerRawInputs
 from features import getChainFeatures, getInputFeatures
 from utils.model_utils import getModelNames, getModelRunner, predictStructure
-from utils.utils import compressed_pickle
+from utils.query_utils import getFullSequence
+from utils.utils import compressed_pickle, get_hash
 
 from alphafold.common import protein
 from alphafold.relax import relax
@@ -91,6 +92,9 @@ for model_name in monomer_model_names + multimer_model_names:
             else:
                 custom_a3m = None
             
+            full_sequence = getFullSequence(query)
+            jobname = get_hash(full_sequence)
+                
             sequences = query[-1]
 
             if isinstance(sequences, str):
@@ -108,6 +112,7 @@ for model_name in monomer_model_names + multimer_model_names:
                 is_prokaryote=args.is_prokaryote)
 
             del filename, custom_a3m, sequences, features_for_chain
+            del full_sequence
 
             for seed in seeds:
                 if 'monomer' in model_name:
