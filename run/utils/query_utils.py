@@ -1,7 +1,7 @@
 """ Utility functions for parsing queries from a list of input files. """
 
 import os
-from typing import Sequence, Tuple
+from typing import Sequence, Tuple, Union
 import pandas as pd
 from alphafold.common import residue_constants
 
@@ -204,7 +204,7 @@ def clean_and_validate_multimer_query(
             raise ValueError(
                 f'Query parsed from {filename} has less oligomeric '
                 f'states than number of sequences: oligomer = '
-                f'{clean_oligomer}, num_seqs = {len(clean_sequences)}.'
+                f'{clean_oligomer}, num_seqs = {len(clean_sequences)}.')
 
     total_multimer_length = sum(
         [len(seq) * int(oligo) for seq, oligo in zip(clean_sequences, oligos)])
@@ -216,7 +216,7 @@ def clean_and_validate_multimer_query(
             f'maximum is {max_multimer_length}. If you believe you have the '
             f'resources for this query, overwrite the default '
             f'max_multimer_length by providing the argument: '
-            f'--max_multimer_length NEW_MAX.'
+            f'--max_multimer_length NEW_MAX.')
     elif total_multimer_length > 1536:
         print(f'WARNING: The accuracy of the system has not been fully '
               f'validated above 1536 residues. Query from {filename} is '
@@ -259,3 +259,24 @@ def detect_duplicate_queries(
                 clean_query_list.append(query)
 
     return clean_query_list
+
+
+def getFullSequence(
+        query: Union[MonomerQuery, MultimerQuery]
+        ) -> str:
+
+    if len(query) == 2:
+        full_sequence = query[1]
+
+    else:
+        oligomer = query[1]
+        sequences = query[2]
+
+        oligo_list = oligomer.split(':')
+
+        full_sequence = ''.join([
+            seq * int(oligo) for seq, oligo in zip(sequences, oligo_list)])
+
+    return full_sequence
+
+    

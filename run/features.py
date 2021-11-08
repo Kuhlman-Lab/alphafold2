@@ -10,10 +10,13 @@ import random
 import tarfile
 import copy
 import numpy as np
+import pathlib
 from alphafold.data import parsers
 from alphafold.data import pipeline
+from alphafold.data import templates
 from alphafold.notebooks import notebook_utils
 from typing import Sequence, Optional, Dict, Tuple, MutableMapping
+
 
 # (filename, sequence)
 MonomerQuery = Tuple[str, str]
@@ -335,7 +338,12 @@ def getChainFeatures(
 
         # Get template features
         if use_templates:
-            # HOW TO DO TEMPLATES?????
+            new_raw_inputs = copy.deepcopy(raw_inputs[sequence])
+            a3m = new_raw_inputs[0]
+            template = new_raw_inputs[1]
+            
+            feature_dict.update(
+                make_template(sequence, a3m, template))
         else:
             feature_dict.update(
                 notebook_utils.empty_placeholder_template_features(
@@ -374,3 +382,31 @@ def getInputFeatures(
             # Pad MSA to avoid zero-size extra MSA.
             return pipeline_multimer.pad_msa(input_features,
                                              min_num_seq=min_num_seq)
+
+
+def make_template(
+        query_sequence: str,
+        a3m_lines: Sequence[str],
+        template_paths: str):
+
+    template_featurizer = template_utils.TemplateHitFeaturizer(
+            mmcif_dir=template_paths,
+            max_template_date='2100-01-01',
+            max_hits=20,
+            kalign_binary_path='kalign',
+            release_dates_path=None,
+            obsolete_pdbs_path=None)
+
+    hhsearch_pdb70_runner = template_utils.HHSearch(
+        binary_path='hhsearch',
+        databases=[f'{template_paths}/pdb70'])
+
+    hhsearch_result = hhsearch_pdb70_runner.query(a3m_lines)
+    hhsearch_hits = parsers.parse_hhr(hhsearch_result)
+    templates_result = template_featurizer.get_templates(
+        query_sequence=query_sequence,
+        query_pdb_code=None,
+        query_release_date=None,
+        hits=hhsearch_hits)
+
+    return templates_result.features
