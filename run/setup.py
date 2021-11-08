@@ -47,7 +47,7 @@ def getAF2Parser() -> FileArgumentParser:
                         type=str,
                         help='Path to the directory that holds the \'params\' '
                         'folder and all of the compressed parameter weights. '
-                        'Default is ../alphafold/data/.'
+                        'Default is ../alphafold/data/.')
 
     parser.add_argument('--compress_output',
                         action='store_true',
@@ -107,6 +107,19 @@ def getAF2Parser() -> FileArgumentParser:
                         'this step will increase runtime. By not having this '
                         'step, your models may have small stereochemical '
                         'violations. Default is False.')
+
+    # Template Arguments
+    parsers.add_argument('--use_templates',
+                         action='store_true',
+                         help='Whether or not to use templates as determined '
+                         'by MMseqs2. Default is False.')
+
+    parsers.add_argument('--custom_templates_path',
+                         type=str,
+                         help='Path to directory containing custom pdb files '
+                         'to be used as templates for AF2. Note that '
+                         'specifying this will cause the custom templates to '
+                         'be used for every query sequence!')
 
     # Model Control Arguments
     parsers.add_argument('--use_ptm',

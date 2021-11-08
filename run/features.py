@@ -320,7 +320,8 @@ def getChainFeatures(
         sequences: Sequence[str],
         raw_inputs: RawInput,
         use_templates: bool = False,
-        custom_a3m_lines: Optional[str] = None
+        custom_a3m_lines: Optional[str] = None,
+        custom_templates_path: Optional[str] = None
         ) -> MutableMapping[str, pipeline.FeatureDict]:
     feature_for_chain = {}
     
@@ -341,9 +342,13 @@ def getChainFeatures(
             new_raw_inputs = copy.deepcopy(raw_inputs[sequence])
             a3m = new_raw_inputs[0]
             template = new_raw_inputs[1]
-            
-            feature_dict.update(
-                make_template(sequence, a3m, template))
+
+            if custom_templates_path:
+                feature_dict.update(
+                    get_custom_template_features(custom_templates_path))
+            else:
+                feature_dict.update(
+                    make_template(sequence, a3m, template))
         else:
             feature_dict.update(
                 notebook_utils.empty_placeholder_template_features(
