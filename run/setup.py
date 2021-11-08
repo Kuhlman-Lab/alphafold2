@@ -43,6 +43,12 @@ def getAF2Parser() -> FileArgumentParser:
                         help='Path to directory that will store the results. '
                         'Default is ./prediction_{datetime}.')
 
+    parser.add_argument('--params_dir',
+                        type=str,
+                        help='Path to the directory that holds the \'params\' '
+                        'folder and all of the compressed parameter weights. '
+                        'Default is ../alphafold/data/.'
+
     parser.add_argument('--compress_output',
                         action='store_true',
                         help='Whether or not to compress the results '
