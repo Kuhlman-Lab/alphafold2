@@ -66,7 +66,8 @@ class RunModel:
 
   def __init__(self,
                config: ml_collections.ConfigDict,
-               params: Optional[Mapping[str, Mapping[str, np.ndarray]]] = None):
+               params: Optional[Mapping[str, Mapping[str, np.ndarray]]] = None,
+               is_training = False):
     self.config = config
     self.params = params
     self.multimer_mode = config.model.global_config.multimer_mode
@@ -76,13 +77,13 @@ class RunModel:
         model = modules_multimer.AlphaFold(self.config.model)
         return model(
             batch,
-            is_training=False)
+            is_training=is_training)
     else:
       def _forward_fn(batch):
         model = modules.AlphaFold(self.config.model)
         return model(
             batch,
-            is_training=False,
+            is_training=is_training,
             compute_loss=False,
             ensemble_representations=True)
 
@@ -164,7 +165,8 @@ class RunModel:
     self.init_params(feat)
     logging.info('Running predict with shape(feat) = %s',
                  tree.map_structure(lambda x: x.shape, feat))
-    result = self.apply(self.params, jax.random.PRNGKey(random_seed), feat)
+    result, recycles = self.apply(
+      self.params, jax.random.PRNGKey(random_seed), feat)
 
     # This block is to ensure benchmark timings are accurate. Some blocking is
     # already happening when computing get_confidence_metrics, and this ensures
@@ -174,4 +176,4 @@ class RunModel:
         get_confidence_metrics(result, multimer_mode=self.multimer_mode))
     logging.info('Output shape was %s',
                  tree.map_structure(lambda x: x.shape, result))
-    return result
+    return result, recycles
