@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """Code for constructing the model."""
-from typing import Any, Mapping, Optional, Union
+from typing import Any, Mapping, Optional, Union, Tuple
 
 from absl import logging
 from alphafold.common import confidence
@@ -150,7 +150,7 @@ class RunModel:
   def predict(self,
               feat: features.FeatureDict,
               random_seed: int,
-              ) -> Mapping[str, Any]:
+              ) -> Tuple[Mapping[str, Any], Tuple[int, float]]:
     """Makes a prediction by inferencing the model on the provided features.
 
     Args:
@@ -160,7 +160,8 @@ class RunModel:
         multimer model this controls the MSA sampling.
 
     Returns:
-      A dictionary of model outputs.
+      A tuple containing a dictionary of model outputs and recycling iteration 
+      and tolerance.
     """
     self.init_params(feat)
     logging.info('Running predict with shape(feat) = %s',

@@ -298,12 +298,14 @@ class AlphaFold(hk.Module):
 
     Returns:
       When compute_loss is True:
-        a tuple of loss and output of AlphaFoldIteration.
+        a tuple of loss and output of AlphaFoldIteration plus recycling 
+        information.
       When compute_loss is False:
-        just output of AlphaFoldIteration.
+        just output of AlphaFoldIteration plus recycling information.
 
       The output of AlphaFoldIteration is a nested dictionary containing
       predictions from the various heads.
+      Recycling information is a tuple of recycling iteration and tolerance.
     """
 
     impl = AlphaFoldIteration(self.config, self.global_config)
