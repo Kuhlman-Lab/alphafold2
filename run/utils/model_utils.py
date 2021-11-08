@@ -43,7 +43,7 @@ def getModelNames(
 
 
 def getModelRunner(
-        model_name: str, num_ensemble: int = 1,
+        model_name: str, num_ensemble: int = 1, is_training: bool = False,
         params_dir: str = '../alphafold/data') -> model.RunModel:
 
     cfg = config.model_config(model_name)
@@ -55,7 +55,7 @@ def getModelRunner(
 
     params = data.get_model_haiku_params(model_name, params_dir)
 
-    return model.RunModel(cfg, params)
+    return model.RunModel(cfg, params, is_training)
 
 
 def predictStructure(

@@ -79,6 +79,7 @@ for model_name in monomer_model_names + multimer_model_names:
         model_runner = getModelRunner(
             model_name=model_name,
             num_ensemble=args.num_ensemble,
+            is_training=args.is_training,
             params_dir=args.params_dir)
 
         for query in monomer_queries + multimer_queries:

@@ -141,6 +141,13 @@ def getAF2Parser() -> FileArgumentParser:
                          'also provided, then it will guarantee that that seed '
                          'will be run. Default is 1.')
 
+    parsers.add_argument('--is_training',
+                         action='store_true',
+                         help='Enables the stochastic part of the model '
+                         '(dropout). When coupled with \'num_seeds\' can be '
+                         'used to "sample" a diverse set of structures. False '
+                         '(NOT including this option) is recommended at first.')
+                        
     return parser
     
 
