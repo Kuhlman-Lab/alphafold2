@@ -1,4 +1,20 @@
-429a430
-> 	'recycle_tol': 0.0,
-654a656
-> 	'recycle_tol': 0.0,
+diff --git a/config.py b/temp.py
+index d1aba86..2c8a499 100644
+--- a/config.py
++++ b/temp.py
+@@ -427,6 +427,7 @@ CONFIG = ml_collections.ConfigDict({
+             },
+         },
+         'num_recycle': 3,
++        'recycle_tol': 0.0,
+         'resample_msa_in_recycling': True
+     },
+ })
+@@ -652,6 +653,7 @@ CONFIG_MULTIMER = ml_collections.ConfigDict({
+         },
+         'num_ensemble_eval': 1,
+         'num_recycle': 3,
++        'recycle_tol': 0.0,
+         'resample_msa_in_recycling': True
+     }
+ })
