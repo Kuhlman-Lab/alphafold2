@@ -44,7 +44,7 @@ def getModelNames(
 
 def getModelRunner(
         model_name: str, num_ensemble: int = 1,
-        params_dir: str = './alphafold/data') -> model.RunModel:
+        params_dir: str = '../alphafold/data') -> model.RunModel:
 
     cfg = config.model_config(model_name)
 
