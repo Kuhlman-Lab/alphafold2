@@ -147,6 +147,20 @@ def getAF2Parser() -> FileArgumentParser:
                          '(dropout). When coupled with \'num_seeds\' can be '
                          'used to "sample" a diverse set of structures. False '
                          '(NOT including this option) is recommended at first.')
+
+    parsers.add_argument('--max_recycle',
+                         default=3,
+                         type=int,
+                         help='Controls the maximum number of times the '
+                         'structure is fed back into the neural network for '
+                         'refinement. Default is 3.')
+
+    parsers.add_argument('--recycle_tol',
+                         default=0,
+                         type=float,
+                         help='Tolerance for deciding when to stop recycling '
+                         'the structure through the network (Ca-RMS between '
+                         'recycles).')
                         
     return parser
     

@@ -44,6 +44,7 @@ def getModelNames(
 
 def getModelRunner(
         model_name: str, num_ensemble: int = 1, is_training: bool = False,
+        num_recycle: int = 3, recycle_tol: float = 0,
         params_dir: str = '../alphafold/data') -> model.RunModel:
 
     cfg = config.model_config(model_name)
@@ -53,6 +54,9 @@ def getModelRunner(
     elif 'multimer' in model_name:
         cfg.model.num_ensemble_eval = num_ensemble
 
+    cfg.model.num_recycle = num_recycle
+    cfg.model.recycle_tol = recycle_tol
+        
     params = data.get_model_haiku_params(model_name, params_dir)
 
     return model.RunModel(cfg, params, is_training)

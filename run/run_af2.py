@@ -80,6 +80,8 @@ for model_name in monomer_model_names + multimer_model_names:
             model_name=model_name,
             num_ensemble=args.num_ensemble,
             is_training=args.is_training,
+            num_recycle=args.max_recycle,
+            recycle_tol=args.recycle_tol,
             params_dir=args.params_dir)
 
         for query in monomer_queries + multimer_queries:
