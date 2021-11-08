@@ -6,8 +6,27 @@ from alphafold.model import data
 
 from alphafold.data import pipeline
 
+import random
+import sys
 import numpy as np
-from typing import Tuple
+from typing import Tuple, Sequence, Optional
+
+
+def getRandomSeeds(
+        random_seed: Optional[int],
+        num_seeds: int) -> Sequence[int]:
+
+    seeds = []
+    # If a random seed was provided, guarantee that it will be run.
+    if random_seed:
+        seeds.append(random_seed)
+
+    # While we have less seeds than desired, get a new one.
+    while len(seeds) < num_seeds:
+        seeds.append(random.randrange(sys.maxsize))
+
+    return seeds
+        
 
 def getModelNames(
         mode: str, use_ptm: bool = True, num_models: int = 5) -> Tuple[str]:
@@ -40,8 +59,10 @@ def getModelRunner(
 
 
 def predictStructure(
-        model_runner: model.RunModel, random_seed: int = 0,
-        feature_dict: pipeline.FeatureDict, model_type: str
+        model_runner: model.RunModel,
+        feature_dict: pipeline.FeatureDict,
+        model_type: str
+        random_seed: int = random.randrange(sys.maxsize)
         ) -> Dict[str, np.ndarray]:
 
     processed_feature_dict = model_runner.process_features(

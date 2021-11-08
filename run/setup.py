@@ -49,7 +49,7 @@ def getAF2Parser() -> FileArgumentParser:
                         'dictionary that is generated for each query. Default '
                         'is False.')
 
-    parser.add_argument('--write_pdbs',
+    parser.add_argument('--dont_write_pdbs',
                         action='store_true',
                         help='Whether or not to write output pdb files. '
                         'Default is False.')
@@ -115,7 +115,25 @@ def getAF2Parser() -> FileArgumentParser:
                          choices=[1, 2, 3, 4, 5],
                          help='Number of models to run. Choose an integer from '
                          '1 to 5. Default is 5.')
-                          
+
+    parsers.add_argument('--num_ensemble',
+                         default=1,
+                         type=int,
+                         help='The trunk of the network is run multiple times '
+                         'with different random choices for the MSA cluster '
+                         'centers. Default is 1 but CASP14 settings is 8.')
+
+    parsers.add_argument('--random_seed',
+                         type=int,
+                         help='Random seed for stochastic features of the AF2.')
+
+    parsers.add_argument('--num_seeds',
+                         default=1,
+                         type=int,
+                         help='How many different random seeds to try for each '
+                         'model and sequence. If --random_seed argument is '
+                         'also provided, then it will guarantee that that seed '
+                         'will be run. Default is 1.')
 
     return parser
     
