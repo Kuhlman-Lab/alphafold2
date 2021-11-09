@@ -9,7 +9,7 @@ from alphafold.data import pipeline
 import random
 import sys
 import numpy as np
-from typing import Tuple, Sequence, Optional
+from typing import Tuple, Sequence, Optional, Dict
 
 
 def getRandomSeeds(
@@ -18,7 +18,7 @@ def getRandomSeeds(
 
     seeds = []
     # If a random seed was provided, guarantee that it will be run.
-    if random_seed:
+    if random_seed != None:
         seeds.append(random_seed)
 
     # While we have less seeds than desired, get a new one.
@@ -59,13 +59,13 @@ def getModelRunner(
         
     params = data.get_model_haiku_params(model_name, params_dir)
 
-    return model.RunModel(cfg, params, is_training)
+    return model.RunModel(config=cfg, params=params, is_training=is_training)
 
 
 def predictStructure(
         model_runner: model.RunModel,
         feature_dict: pipeline.FeatureDict,
-        model_type: str
+        model_type: str,
         random_seed: int = random.randrange(sys.maxsize)
         ) -> Dict[str, np.ndarray]:
 
