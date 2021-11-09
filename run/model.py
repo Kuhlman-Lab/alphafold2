@@ -1,4 +1,4 @@
-""" Utility functions for setting up and running AF2 models. """
+""" Functions for setting up and running AF2 models. """
 
 from alphafold.model import config
 from alphafold.model import model
