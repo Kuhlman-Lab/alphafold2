@@ -22,6 +22,15 @@ from utils.utils import compressed_pickle, get_hash
 from alphafold.common import protein
 from alphafold.relax import relax
 
+MAX_TEMPLATE_HITS = 20
+RELAX_MAX_ITERATIONS = 0
+RELAX_ENERGY_TOLERANCE = 2.39
+RELAX_STIFFNESS = 10.0
+RELAX_EXCLUDE_RESIDUES = []
+RELAX_MAX_OUTER_ITERATIONS = 3
+
+
+
 # Parse arguments.
 parser = getAF2Parser()
 args = parser.parse_args()
