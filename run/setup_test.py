@@ -19,6 +19,10 @@ class TestQueryParsing(unittest.TestCase):
         self.input_dir = 'testdata'
         self.files = {'fasta': [fasta_path], 'a3m': [a3m_path],
                       'csv': [csv_path]}
+        self.others = [os.path.join('testdata', 'seq2_a3m.txt'),
+                       os.path.join('testdata', 'seq1_templates.txt'),
+                       os.path.join('testdata', 'seq1_a3m.txt'),
+                       os.path.join('testdata', 'seq2_templates.txt')]
         self.monomer_queries = [(a3m_path, seq1), (fasta_path, seq1),
                                 (fasta_path, seq2)]
         self.multimer_queries = [(csv_path, oligo1, [seq1, seq2]),
@@ -28,7 +32,7 @@ class TestQueryParsing(unittest.TestCase):
         qm = setup.QueryManager(input_dir=self.input_dir)
 
         self.assertEqual(qm.files, self.files)
-        self.assertEqual(qm.others, [])
+        self.assertEqual(qm.others, self.others)
 
         qm.parse_files()
 

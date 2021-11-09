@@ -15,7 +15,8 @@ os.environ['XLA_PYTHON_CLIENT_MEM_FRACTION'] = '2.0'
 from setup import getAF2Parser, QueryManager
 from features import getMonomerRawInputs, getMultimerRawInputs
 from features import getChainFeatures, getInputFeatures
-from utils.model_utils import getModelNames, getModelRunner, predictStructure
+from model import getRandomSeeds, getModelNames, getModelRunner
+from model import predictStructure
 from utils.query_utils import getFullSequence
 from utils.utils import compressed_pickle, get_hash
 
