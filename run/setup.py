@@ -183,9 +183,9 @@ class QueryManager(object):
 
     def __init__(self,
             input_dir: str,
-            min_length: int,
-            max_length: int,
-            max_multimer_length: int) -> None:
+            min_length: int = 16,
+            max_length: int = 2500,
+            max_multimer_length: int = 2500) -> None:
         self.min_length = min_length
         self.max_length = max_length
         self.max_multimer_length = max_multimer_length
@@ -230,11 +230,11 @@ class QueryManager(object):
                 queries = query_utils.parse_csv_files(
                     files=self.files['csv'])
             # Validate queries by checking sequence composition and lengths
-            queries = validate_queries(
+            queries = query_utils.validate_queries(
                 input_queries=queries,
-                min_length=min_length,
-                max_length=max_length,
-                max_multimer_length=max_multimer_length)
+                min_length=self.min_length,
+                max_length=self.max_length,
+                max_multimer_length=self.max_multimer_length)
 
             # Add queries to appropriate lists. Important for handling multiple
             # models.
