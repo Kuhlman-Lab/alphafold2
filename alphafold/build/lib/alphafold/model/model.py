@@ -13,7 +13,7 @@
 # limitations under the License.
 
 """Code for constructing the model."""
-from typing import Any, Mapping, Optional, Union
+from typing import Any, Mapping, Optional, Union, Tuple
 
 from absl import logging
 from alphafold.common import confidence
@@ -66,7 +66,8 @@ class RunModel:
 
   def __init__(self,
                config: ml_collections.ConfigDict,
-               params: Optional[Mapping[str, Mapping[str, np.ndarray]]] = None):
+               params: Optional[Mapping[str, Mapping[str, np.ndarray]]] = None,
+               is_training: bool = False):
     self.config = config
     self.params = params
     self.multimer_mode = config.model.global_config.multimer_mode
@@ -76,13 +77,13 @@ class RunModel:
         model = modules_multimer.AlphaFold(self.config.model)
         return model(
             batch,
-            is_training=False)
+            is_training=is_training)
     else:
       def _forward_fn(batch):
         model = modules.AlphaFold(self.config.model)
         return model(
             batch,
-            is_training=False,
+            is_training=is_training,
             compute_loss=False,
             ensemble_representations=True)
 
@@ -149,7 +150,7 @@ class RunModel:
   def predict(self,
               feat: features.FeatureDict,
               random_seed: int,
-              ) -> Mapping[str, Any]:
+              ) -> Tuple[Mapping[str, Any], Tuple[int, float]]:
     """Makes a prediction by inferencing the model on the provided features.
 
     Args:
@@ -159,12 +160,14 @@ class RunModel:
         multimer model this controls the MSA sampling.
 
     Returns:
-      A dictionary of model outputs.
+      A tuple containing a dictionary of model outputs and recycling iteration 
+      and tolerance.
     """
     self.init_params(feat)
     logging.info('Running predict with shape(feat) = %s',
                  tree.map_structure(lambda x: x.shape, feat))
-    result = self.apply(self.params, jax.random.PRNGKey(random_seed), feat)
+    result, recycles = self.apply(
+      self.params, jax.random.PRNGKey(random_seed), feat)
 
     # This block is to ensure benchmark timings are accurate. Some blocking is
     # already happening when computing get_confidence_metrics, and this ensures
@@ -174,4 +177,4 @@ class RunModel:
         get_confidence_metrics(result, multimer_mode=self.multimer_mode))
     logging.info('Output shape was %s',
                  tree.map_structure(lambda x: x.shape, result))
-    return result
+    return result, recycles
