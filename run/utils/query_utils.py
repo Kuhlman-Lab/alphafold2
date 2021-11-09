@@ -4,6 +4,7 @@ import os
 from typing import Sequence, Tuple, Union
 import pandas as pd
 from alphafold.common import residue_constants
+from alphafold.data import pipeline
 
 # (filename, sequence)
 MonomerQuery = Tuple[str, str]
@@ -12,7 +13,7 @@ MonomerQuery = Tuple[str, str]
 MultimerQuery = Tuple[str, str, Sequence[str]]
 
 
-def parse_fasta_files(self, files: Sequence[str]) -> Sequence[MonomerQuery]:
+def parse_fasta_files(files: Sequence[str]) -> Sequence[MonomerQuery]:
     """ Parse a list of .fasta files and return a list of monomer queries. """
     query_list = []
     
@@ -29,7 +30,7 @@ def parse_fasta_files(self, files: Sequence[str]) -> Sequence[MonomerQuery]:
     return query_list
 
 
-def parse_a3m_files(self, files: Sequence[str]) -> Sequence[MonomerQuery]:
+def parse_a3m_files(files: Sequence[str]) -> Sequence[MonomerQuery]:
     """ Parse a list of .a3m files and return a list of monomer queries. """
     query_list = []
 
@@ -55,7 +56,7 @@ def parse_a3m_files(self, files: Sequence[str]) -> Sequence[MonomerQuery]:
     return query_list
 
 
-def parse_csv_files(self, files: Sequence[str]) -> Sequence[MultimerQuery]:
+def parse_csv_files(files: Sequence[str]) -> Sequence[MultimerQuery]:
     """ Parse a list of .csv files and return a list of multimer queries. """
     query_list = []
 
@@ -64,9 +65,9 @@ def parse_csv_files(self, files: Sequence[str]) -> Sequence[MultimerQuery]:
 
         # Each row is a single query with possibly many sequences summarized by
         # the oligomer state.
-        for row_idx in range(len(df)):
-            oligomer = query_df.iloc[row][0]
-            sequences = list(query_df.iloc[row][1:])
+        for row_idx in range(len(query_df)):
+            oligomer = query_df.iloc[row_idx][0]
+            sequences = list(query_df.iloc[row_idx][1:])
 
             query_list.append( (filename, oligomer, sequences) )
 
@@ -187,24 +188,25 @@ def clean_and_validate_multimer_query(
     else:
         clean_oligomer = oligomer.translate(
             str.maketrans('', '', ' \n\t'))
-        oligomer_vals = set('123456789:')
-        if not set(clean_oligomer).issubset(oligomer_vals):
-            raise ValueError(
-                f'Query parsed from {filename} has an oligomer state '
-                f'with non-valid characters: '
-                f'{set(clean_oligomer) - oligomer_vals}.')
 
-        oligos = clean_oligomer.split(':')
-        if len(oligos) > len(clean_sequences):
-            raise ValueError(
-                f'Query parsed from {filename} has more oligomeric '
-                f'states than number of sequences: oligomer = '
-                f'{clean_oligomer}, num_seqs = {len(clean_sequences)}.')
-        if len(oligos) < len(clean_sequences):
-            raise ValueError(
-                f'Query parsed from {filename} has less oligomeric '
-                f'states than number of sequences: oligomer = '
-                f'{clean_oligomer}, num_seqs = {len(clean_sequences)}.')
+    oligomer_vals = set('123456789:')
+    if not set(clean_oligomer).issubset(oligomer_vals):
+        raise ValueError(
+            f'Query parsed from {filename} has an oligomer state '
+            f'with non-valid characters: '
+            f'{set(clean_oligomer) - oligomer_vals}.')
+
+    oligos = clean_oligomer.split(':')
+    if len(oligos) > len(clean_sequences):
+        raise ValueError(
+            f'Query parsed from {filename} has more oligomeric '
+            f'states than number of sequences: oligomer = '
+            f'{clean_oligomer}, num_seqs = {len(clean_sequences)}.')
+    if len(oligos) < len(clean_sequences):
+        raise ValueError(
+            f'Query parsed from {filename} has less oligomeric '
+            f'states than number of sequences: oligomer = '
+            f'{clean_oligomer}, num_seqs = {len(clean_sequences)}.')
 
     total_multimer_length = sum(
         [len(seq) * int(oligo) for seq, oligo in zip(clean_sequences, oligos)])
@@ -222,8 +224,8 @@ def clean_and_validate_multimer_query(
               f'validated above 1536 residues. Query from {filename} is '
               f'a total length of {total_multimer_length}.')    
 
-    if len(clean_sequences) == 1 and
-        len(total_multimer_length) == len(clean_sequences[0]):
+    if len(clean_sequences) == 1 and (
+            total_multimer_length == len(clean_sequences[0])):
 
         return (filename, clean_sequences[0])
     else:
@@ -231,7 +233,7 @@ def clean_and_validate_multimer_query(
 
 def detect_duplicate_queries(
         query_list: Union[Sequence[MonomerQuery], Sequence[MultimerQuery]]
-        ) -> query_list: Union[Sequence[MonomerQuery], Sequence[MultimerQuery]]:
+        ) -> Union[Sequence[MonomerQuery], Sequence[MultimerQuery]]:
     """ Detects duplicate queries from query list. If a same query comes from 
         two different sources, it is considered a duplicate unless one of those
         sources is an .a3m file. .a3m files are always considered unique due to 
@@ -245,21 +247,31 @@ def detect_duplicate_queries(
             dupe = False
             
             for old_query in clean_query_list:
-                for idx, aspect in enumerate(query):
-                    if idx == 0:
-                        if aspect[-4:] == '.a3m':
-                            break
-                    else:
-                        if aspect == old_query[idx]:
-                            if old_query[0][-4:] != '.a3m':
-                                dupe = True
-                                break
+                if _check_dupe(old_query, query):
+                    dupe = True
 
             if dupe == False:
                 clean_query_list.append(query)
 
     return clean_query_list
 
+
+def _check_dupe(old_query: Union[MonomerQuery, MultimerQuery],
+                new_query: Union[MonomerQuery, MultimerQuery]) -> bool:
+
+    if old_query[0][-4:] == '.a3m':
+        return False
+
+    if new_query[0][-4:] == '.a3m':
+        return False
+
+    old_fullseq = getFullSequence(query=old_query)
+    new_fullseq = getFullSequence(query=new_query)
+    if old_fullseq == new_fullseq:
+        return True
+    else:
+        return False
+    
 
 def getFullSequence(
         query: Union[MonomerQuery, MultimerQuery]
