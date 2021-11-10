@@ -963,7 +963,7 @@ class HHSearch:
         f.write(a3m)
 
       db_cmd = []
-            for db_path in self.databases:
+      for db_path in self.databases:
         db_cmd.append('-d')
         db_cmd.append(db_path)
       cmd = [self.binary_path,
@@ -1001,7 +1001,7 @@ def get_custom_template_features(template_path):
     return "".join(lines)
 
   files = os.listdir(template_path)
-  files = [file if file[-4:]=='.pdb' for file in files]
+  files = [file for file in files if file[-4:]=='.pdb']
 
   aatype = None
   atom_masks = None
@@ -1016,19 +1016,19 @@ def get_custom_template_features(template_path):
       aatype = jnp.concatenate(
         (aatype, jax.nn.one_hot(protein_obj.aatype,22)[:][None]))
 
-    if atom_masks = None:
+    if atom_masks == None:
       atom_masks = protein_obj.atom_mask[:][None]
     else:
       atom_masks = jnp.concatenate(
         (atom_masks, protein_obj.atom_mask[:][None]))
     
-    if atom_positions = None:
+    if atom_positions == None:
       atom_positions = protein_obj.atom_positions[:][None]
     else:
       atom_positions = jnp.concatenate(
         (atom_positions, protein_obj.atom_positions[:][None]))
       
-    if domain_names = None:
+    if domain_names == None:
       domain_names = np.asarray(['None'])
     else:
       domain_names = jnp.concatenate(
