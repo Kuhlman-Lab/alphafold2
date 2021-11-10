@@ -1,0 +1,4 @@
+265c265
+<     chain_index = _maybe_remove_leading_dim(features['asym_id'])
+---
+>     chain_index = _maybe_remove_leading_dim(features['asym_id'])-1
