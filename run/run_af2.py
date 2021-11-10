@@ -42,15 +42,13 @@ del qm
 # Get raw model inputs.
 raw_inputs_from_sequence, a3m_lines = getMonomerRawInputs(
     monomer_queries=monomer_queries,
-    use_env=args.use_env,
-    use_filter=args.use_filter,
+    msa_mode=args.msa_mode,
     use_templates=args.use_templates,
     output_dir=args.output_dir)
 
 raw_inputs_from_sequence = getMultimerRawInputs(
     multimer_queries=multimer_queries,
-    use_env=args.use_env,
-    use_filter=args.use_filter,
+    msa_mode=args.msa_mode,
     use_templates=args.use_templates,
     output_dir=args.output_dir,
     raw_inputs=raw_inputs_from_sequence)
@@ -129,7 +127,7 @@ for model_name in monomer_model_names + multimer_model_names:
                     random_seed=seed)
 
                 if args.dont_write_pdbs:
-                    unrelaxed_pdb = protein.to_pdb(result('unrelaxed_protein'])
+                    unrelaxed_pdb = protein.to_pdb(result('unrelaxed_protein'))
 
                     unrelaxed_pred_path = os.path.join(
                         args.output_dir, 'unrelaxed_prediction.pdb')
