@@ -33,7 +33,7 @@ RawInput = Dict[str, Tuple[str, str]]
 
 def getMonomerRawInputs(
         monomer_queries: Sequence[MonomerQuery],
-        use_env: bool = True,
+        msa_mode: str,
         use_filter: bool = True,
         use_templates: bool = False,
         output_dir: str = '',
@@ -62,12 +62,21 @@ def getMonomerRawInputs(
             a3m_files.append(filename)
 
     # Run MMseqs2.
-    a3m_lines, template_paths = runMMseqs2(
-        prefix=os.path.join(output_dir, 'mmseqs2', 'monomers'),
-        sequences=new_sequences,
-        use_env=use_env,
-        use_filter=use_filter,
-        use_templates=use_templates)
+    if msa_mode != 'single_sequence':
+        use_env = True if msa_mode == 'MMseqs2-U+E' else False
+
+        a3m_lines, template_paths = runMMseqs2(
+            prefix=os.path.join(output_dir, 'mmseqs2', 'monomers'),
+            sequences=new_sequences,
+            use_env=use_env,
+            use_filter=use_filter,
+            use_templates=use_templates)
+    else:
+        a3m_lines = []
+        template_paths = []
+        for sequence in new_sequences:
+            a3m_lines.append(f'>1\n{sequence}\n')
+            template_paths.append(None)
 
     # Store into dictionary.
     for msa, templates in zip(a3m_lines, template_paths):
@@ -85,7 +94,7 @@ def getMonomerRawInputs(
 
 def getMultimerRawInputs(
         multimer_queries: Sequence[MultimerQuery],
-        use_env: bool = True,
+        msa_mode: str,
         use_filter: bool = True,
         use_templates: bool = False,
         output_dir: str = '',
@@ -109,12 +118,21 @@ def getMultimerRawInputs(
                 new_sequences.append(sequence)
 
     # Run MMseqs2.
-    a3m_lines, template_paths = runMMseqs2(
-        prefix=os.path.join(output_dir, 'mmseqs2', 'multimers'),
-        sequences=new_sequences,
-        use_env=use_env,
-        use_filter=use_filter,
-        use_templates=use_templates)
+    if msa_mode != 'single_sequence':
+        use_env = True if msa_mode == 'MMseqs2-U+E' else False
+        
+        a3m_lines, template_paths = runMMseqs2(
+            prefix=os.path.join(output_dir, 'mmseqs2', 'multimers'),
+            sequences=new_sequences,
+            use_env=use_env,
+            use_filter=use_filter,
+            use_templates=use_templates)
+    else:
+        a3m_lines = []
+        template_paths = []
+        for sequence in new_sequences:
+            a3m_lines.append(f'>1\n{sequence}\n')
+            template_paths.append(None)
 
     # Store into dictionary.
     for msa, templates in zip(a3m_lines, template_paths):

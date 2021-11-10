@@ -43,7 +43,7 @@ class TestRawInputs(unittest.TestCase):
     def test_raw_inputs(self) -> None:
         raw_inputs, a3m_lines = features.getMonomerRawInputs(
             monomer_queries=self.monomer_queries,
-            use_env=True,
+            msa_mode='MMseqs2-U+E',
             use_templates=True)
 
         seq1_templates = ','.join(os.listdir(raw_inputs[self.seq1][1]))
@@ -55,7 +55,7 @@ class TestRawInputs(unittest.TestCase):
         
         raw_inputs = features.getMultimerRawInputs(
             multimer_queries=self.multimer_queries,
-            use_env=True,
+            msa_mode='MMseqs2-U+E',
             use_templates=True,
             raw_inputs=raw_inputs)
 
