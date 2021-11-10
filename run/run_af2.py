@@ -85,12 +85,12 @@ for model_name in monomer_model_names + multimer_model_names:
         recycle_tol=args.recycle_tol,
         params_dir=args.params_dir)
 
-    for query in monomer_queries + multimer_queries:
+    for idx, query in enumerate(monomer_queries + multimer_queries):
         # Skip any multimer queries if current model_runner is a monomer model.
-        if len(query) == 3 and multimer not in model_name:
+        if len(query) == 3 and 'multimer' not in model_name:
             continue
         # Skip any monomer queries if current model_runner is a multimer model.
-        elif len(query) == 2 and multimer in model_name:
+        elif len(query) == 2 and 'multimer' in model_name:
             continue
 
         filename = query[0]
@@ -138,7 +138,7 @@ for model_name in monomer_model_names + multimer_model_names:
                 unrelaxed_pdb = protein.to_pdb(result['unrelaxed_protein'])
 
                 unrelaxed_pred_path = os.path.join(
-                    args.output_dir, 'unrelaxed_prediction.pdb')
+                    args.output_dir, f'unrelaxed_prediction_{idx}.pdb')
                 with open(unrelaxed_pred_path, 'w') as f:
                     f.write(unrelaxed_pdb)
 
@@ -150,7 +150,7 @@ for model_name in monomer_model_names + multimer_model_names:
 
                 if not args.dont_write_pdbs:
                     relaxed_pred_path = os.path.join(
-                        args.output_dir, 'relaxed_prediction.pdb')
+                        args.output_dir, f'relaxed_prediction_{idx}.pdb')
                     with open(relaxed_pred_path, 'w') as f:
                         f.write(relaxed_pdb)
 
@@ -159,7 +159,7 @@ for model_name in monomer_model_names + multimer_model_names:
                 del relaxed_pdb
 
             results_path = os.path.join(
-                args.output_dir, 'results')
+                args.output_dir, f'results_{idx}')
             if args.compress_output:
                 compressed_pickle(results_path, result)
             else:
