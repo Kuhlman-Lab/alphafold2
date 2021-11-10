@@ -399,7 +399,7 @@ def getInputFeatures(
 
         all_chain_features = pipeline_multimer.add_assembly_features(
             all_chain_features)
-        
+
         input_features = feature_processing.pair_and_merge(
             all_chain_features=all_chain_features,
             is_prokaryote=is_prokaryote)
