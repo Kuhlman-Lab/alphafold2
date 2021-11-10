@@ -86,6 +86,13 @@ for model_name in monomer_model_names + multimer_model_names:
         params_dir=args.params_dir)
 
     for query in monomer_queries + multimer_queries:
+        # Skip any multimer queries if current model_runner is a monomer model.
+        if len(query) == 3 and multimer not in model_name:
+            continue
+        # Skip any monomer queries if current model_runner is a multimer model.
+        elif len(query) == 2 and multimer in model_name:
+            continue
+
         filename = query[0]
         if filename[-4:] == '.a3m':
             custom_a3m = a3m_lines[filename]
