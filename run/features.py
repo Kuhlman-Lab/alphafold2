@@ -13,10 +13,14 @@ import numpy as np
 import pathlib
 from alphafold.data import parsers
 from alphafold.data import pipeline
+from alphafold.data import pipeline_multimer
+from alphafold.data import feature_processing
 from alphafold.data import templates
+from alphafold.common import protein
 from alphafold.notebooks import notebook_utils
 from typing import Sequence, Optional, Dict, Tuple, MutableMapping, Union
 
+from utils import template_utils
 
 # (filename, sequence)
 MonomerQuery = Tuple[str, str]
@@ -309,7 +313,7 @@ def getMSA(
     single_chain_msa = [parsers.parse_a3m(a3m_string=a3m_lines)]
 
     # Uniprot MSA?
-    uniprot_msas = []
+    #uniprot_msas = []
         
     return single_chain_msa
 
@@ -321,7 +325,7 @@ def getChainFeatures(
         custom_a3m_lines: Optional[str] = None,
         custom_templates_path: Optional[str] = None
         ) -> MutableMapping[str, pipeline.FeatureDict]:
-    feature_for_chain = {}
+    features_for_chain = {}
     
     for sequence_idx, sequence in enumerate(sequences):
         feature_dict = {}
@@ -331,7 +335,7 @@ def getChainFeatures(
 
         # Get MSA features
         msa = getMSA(
-            sequence=sequence, raw_inputs=raw_inputs_from_sequence,
+            sequence=sequence, raw_inputs_from_sequence=raw_inputs,
             custom_a3m_lines=custom_a3m_lines)
         feature_dict.update(pipeline.make_msa_features(msas=msa))
 
@@ -353,9 +357,9 @@ def getChainFeatures(
                     num_templates=0, num_res=len(sequence)))
 
         features_for_chain[
-            protein.PDB_CHAIN_IDS[sequence_idx - 1]] = feature_dict
+            protein.PDB_CHAIN_IDS[sequence_idx]] = feature_dict
         
-    return feature_for_chain
+    return features_for_chain
 
 
 def getInputFeatures(
