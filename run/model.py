@@ -3,8 +3,10 @@
 from alphafold.model import config
 from alphafold.model import model
 from alphafold.model import data
-
+from alphafold.common import protein
+from alphafold.common import residue_constants
 from alphafold.data import pipeline
+
 
 import random
 import sys
@@ -72,7 +74,7 @@ def predictStructure(
     processed_feature_dict = model_runner.process_features(
         feature_dict, random_seed=random_seed)
 
-    prediction = model_runner.predict(
+    prediction, _ = model_runner.predict(
         processed_feature_dict, random_seed=random_seed)
 
     result = {}
@@ -83,15 +85,14 @@ def predictStructure(
 
     result['ranking_confidence'] = prediction['ranking_confidence']
     result['plddt'] = prediction['plddt']
-    result['structure_module'] = prediction['structure_model']
+    result['structure_module'] = prediction['structure_module']
 
-    final_atom_mask = prediction['structure_module']['final_atom_mask']
-    b_factors = prediction['plddts'][:, None] * final_atom_mask
+    b_factors = np.repeat(
+        prediction['plddt'][:, None], residue_constants.atom_type_num, axis=-1)
     result['unrelaxed_protein'] = protein.from_prediction(
-        processed_feature_dict,
-        prediction,
+        features=processed_feature_dict,
+        result=prediction,
         b_factors=b_factors,
-        remove_leading_feature_dimension=(
-            model_type == 'monomer'))
+        remove_leading_feature_dimension= model_type == 'monomer')
     
     return result
