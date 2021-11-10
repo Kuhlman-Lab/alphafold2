@@ -62,7 +62,7 @@ def getMonomerRawInputs(
             a3m_files.append(filename)
 
     # Run MMseqs2.
-    if msa_mode != 'single_sequence':
+    if msa_mode != 'single_sequence' and new_sequences != []:
         use_env = True if msa_mode == 'MMseqs2-U+E' else False
 
         a3m_lines, template_paths = runMMseqs2(
@@ -118,7 +118,7 @@ def getMultimerRawInputs(
                 new_sequences.append(sequence)
 
     # Run MMseqs2.
-    if msa_mode != 'single_sequence':
+    if msa_mode != 'single_sequence' and new_sequences != []:
         use_env = True if msa_mode == 'MMseqs2-U+E' else False
         
         a3m_lines, template_paths = runMMseqs2(
@@ -397,16 +397,16 @@ def getInputFeatures(
                 chain_id] = pipeline_multimer.convert_monomer_features(
                     features, chain_id)
 
-            all_chain_features = pipeline_multimer.add_assembly_features(
-                all_chain_features)
+        all_chain_features = pipeline_multimer.add_assembly_features(
+            all_chain_features)
+        
+        input_features = feature_processing.pair_and_merge(
+            all_chain_features=all_chain_features,
+            is_prokaryote=is_prokaryote)
 
-            input_features = feature_processing.pair_and_merge(
-                all_chain_features=all_chain_features,
-                is_prokaryote=is_prokaryote)
-
-            # Pad MSA to avoid zero-size extra MSA.
-            return pipeline_multimer.pad_msa(input_features,
-                                             min_num_seq=min_num_seq)
+        # Pad MSA to avoid zero-size extra MSA.
+        return pipeline_multimer.pad_msa(input_features,
+                                         min_num_seq=min_num_seq)
 
 
 def make_template(

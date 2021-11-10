@@ -1,0 +1,8 @@
+--input_dir inputs
+--output_dir outputs
+--params_dir /home/nzrandolph/git/alphafold/alphafold/data
+--compress_output
+--use_templates
+--use_ptm
+--num_models 1
+--max_recycle 1
