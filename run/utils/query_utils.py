@@ -259,12 +259,6 @@ def detect_duplicate_queries(
 def _check_dupe(old_query: Union[MonomerQuery, MultimerQuery],
                 new_query: Union[MonomerQuery, MultimerQuery]) -> bool:
 
-    if old_query[0][-4:] == '.a3m':
-        return False
-
-    if new_query[0][-4:] == '.a3m':
-        return False
-
     old_fullseq = getFullSequence(query=old_query)
     new_fullseq = getFullSequence(query=new_query)
     if old_fullseq == new_fullseq:

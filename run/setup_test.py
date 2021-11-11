@@ -8,7 +8,6 @@ class TestQueryParsing(unittest.TestCase):
 
     def setUp(self) -> None:
         fasta_path = os.path.join('testdata', 'two_seq.fasta')
-        a3m_path = os.path.join('testdata', 'two_seq.a3m')
         csv_path = os.path.join('testdata', 'four_seq.csv')
         seq1 = 'A'*30
         seq2 = 'C'*30
@@ -17,14 +16,12 @@ class TestQueryParsing(unittest.TestCase):
         oligo2 = '2'
 
         self.input_dir = 'testdata'
-        self.files = {'fasta': [fasta_path], 'a3m': [a3m_path],
-                      'csv': [csv_path]}
+        self.files = {'fasta': [fasta_path], 'csv': [csv_path]}
         self.others = [os.path.join('testdata', 'seq2_a3m.txt'),
                        os.path.join('testdata', 'seq1_templates.txt'),
                        os.path.join('testdata', 'seq1_a3m.txt'),
                        os.path.join('testdata', 'seq2_templates.txt')]
-        self.monomer_queries = [(a3m_path, seq1), (fasta_path, seq1),
-                                (fasta_path, seq2)]
+        self.monomer_queries = [(fasta_path, seq1), (fasta_path, seq2)]
         self.multimer_queries = [(csv_path, oligo1, [seq1, seq2]),
                                  (csv_path, oligo2, [seq3])]
         
