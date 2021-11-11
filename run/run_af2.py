@@ -79,7 +79,7 @@ for model_name in model_names:
         recycle_tol=args.recycle_tol,
         params_dir=args.params_dir)
 
-    for idx, query in enumerate(monomer_queries + multimer_queries):
+    for idx, query in enumerate(queries):
         # Skip any multimer queries if current model_runner is a monomer model.
         if len(query) == 3 and 'multimer' not in model_name:
             continue
