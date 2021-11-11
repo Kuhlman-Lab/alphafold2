@@ -79,7 +79,6 @@ dependencies:
   - zstd=1.4.9=haebb681_0
   - pip:
     - absl-py==0.13.0
-    - alphafold==2.1.0
     - astunparse==1.6.3
     - biopython==1.79
     - cached-property==1.5.2
@@ -101,7 +100,6 @@ dependencies:
     - immutabledict==2.0.0
     - importlib-metadata==4.8.1
     - jax==0.2.14
-    - jaxlib==0.1.65+cuda112
     - jmp==0.0.2
     - keras-nightly==2.5.0.dev2021032900
     - keras-preprocessing==1.1.2
