@@ -202,13 +202,13 @@ class QueryManager(object):
         self.monomer_queries = []
         self.multimer_queries = []
 
-        # Detect .fasta, .a3m, and .csv files from the input directory.
+        # Detect .fasta and .csv files from the input directory.
         onlyfiles = [f for f in os.listdir(input_dir) if os.path.isfile(
                      os.path.join(input_dir, f))]
 
         for filename in onlyfiles:
             extension = filename.split('.')[-1]
-            if extension in ['fasta', 'a3m', 'csv']:
+            if extension in ['fasta', 'csv']:
                 if extension not in self.files:
                     self.files[extension] = []
                 self.files[extension].append(os.path.join(input_dir, filename))
@@ -217,7 +217,7 @@ class QueryManager(object):
 
         if len(self.files) == 0:
             raise ValueError(
-                f'No input .fasta, .a3m, or .csv files detected in '
+                f'No input .fasta or .csv files detected in '
                 '{input_dir}')
 
         
@@ -228,14 +228,10 @@ class QueryManager(object):
             if extension == 'fasta':
                 queries = query_utils.parse_fasta_files(
                     files=self.files['fasta'])
-
-            elif extension == 'a3m':
-                queries = query_utils.parse_a3m_files(
-                    files=self.files['a3m'])
-
             else:
                 queries = query_utils.parse_csv_files(
                     files=self.files['csv'])
+
             # Validate queries by checking sequence composition and lengths
             queries = query_utils.validate_queries(
                 input_queries=queries,
