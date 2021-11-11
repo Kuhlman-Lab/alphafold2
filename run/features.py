@@ -16,6 +16,7 @@ from alphafold.data import pipeline
 from alphafold.data import pipeline_multimer
 from alphafold.data import feature_processing
 from alphafold.data import templates
+from alphafold.data import msa_pairing
 from alphafold.common import protein
 from alphafold.notebooks import notebook_utils
 from typing import Sequence, Optional, Dict, Tuple, MutableMapping, Union
@@ -31,113 +32,50 @@ MultimerQuery = Tuple[str, str, Sequence[str]]
 # {sequence: (raw MSA, raw templates)}
 RawInput = Dict[str, Tuple[str, str]]
 
-def getMonomerRawInputs(
-        monomer_queries: Sequence[MonomerQuery],
+def getRawInputs(
+        queries: Sequence[Union[MonomerQuery, MultimerQuery]],
         msa_mode: str,
         use_filter: bool = True,
         use_templates: bool = False,
-        output_dir: str = '',
-        raw_inputs: Optional[RawInput] = None,
-        ) -> Tuple[RawInput, Dict[str, str]]:
-    """ Computes and gathers the raw MSAs for the list of monomer queries. """
-    # Get already computed MSAs and templates.
-    if raw_inputs:
-        raw_inputs = raw_inputs
-    else:
-        raw_inputs = {}
+        output_dir: str = '') -> RawInput:
+    """ Computes and gathers raw a3m lines and template paths for the list of 
+        queries. 
+    """
+    raw_inputs = {}
     
-    # Gather monomer sequences to run MMseqs2 in a batch.
-    new_sequences = []
-    a3m_files = []
-    for monomer in monomer_queries:
-        filename = monomer[0]
-        seq = monomer[1]
+    # Gather unique sequences to run MMseqs2 in a batch.
+    unique_sequences = []
+    for query in queries:
+        filename = query[0]
+        seqs = query[-1]
 
-        # Don't include .a3m files as they already have a custom MSA.
-        if filename[-4:] != '.a3m':
-            # Don't do redundant work if chain already has MSA and templates.
-            if seq not in raw_inputs:
-                new_sequences.append(seq)
-        else:
-            a3m_files.append(filename)
+        if isinstance(seqs, str):
+            seqs = [seqs]
 
-    # Run MMseqs2.
-    if msa_mode != 'single_sequence' and new_sequences != []:
+        for seq in seqs:
+            if seq not in unique_sequences:
+                unique_sequences.append(seq)
+
+    if msa_mode != 'single_sequence' and unique_sequences != []:
         use_env = True if msa_mode == 'MMseqs2-U+E' else False
 
         a3m_lines, template_paths = runMMseqs2(
-            prefix=os.path.join(output_dir, 'mmseqs2', 'monomers'),
-            sequences=new_sequences,
+            prefix=os.path.join(output_dir, 'mmseqs2'),
+            sequences=unique_sequences,
             use_env=use_env,
             use_filter=use_filter,
             use_templates=use_templates)
     else:
         a3m_lines = []
         template_paths = []
-        for sequence in new_sequences:
+        for sequence in unique_sequences:
             a3m_lines.append(f'>1\n{sequence}\n')
             template_paths.append(None)
 
     # Store into dictionary.
-    for msa, templates in zip(a3m_lines, template_paths):
-        sequence = msa.splitlines()[1]
-        raw_inputs[sequence] = (msa, templates)
-
-    # Parse any .a3m files.
-    a3ms = {}
-    for a3m in a3m_files:
-        with open(a3m, 'r') as f:
-            a3ms[a3m] = f.read()
-
-    return (raw_inputs, a3ms)
-
-
-def getMultimerRawInputs(
-        multimer_queries: Sequence[MultimerQuery],
-        msa_mode: str,
-        use_filter: bool = True,
-        use_templates: bool = False,
-        output_dir: str = '',
-        raw_inputs: Optional[RawInput] = None,
-        ) -> RawInput:
-    # Get already computed MSAs and templates.
-    if raw_inputs:
-        raw_inputs = raw_inputs
-    else:
-        raw_inputs = {}
-
-    # Gather multimer sequences to run MMseqs in a batch.
-    new_sequences = []
-    for multimer in multimer_queries:
-        filename = multimer[0]
-        oligomer = multimer[1]
-        sequences = multimer[2]
-
-        for sequence in sequences:
-            if sequence not in raw_inputs:
-                new_sequences.append(sequence)
-
-    # Run MMseqs2.
-    if msa_mode != 'single_sequence' and new_sequences != []:
-        use_env = True if msa_mode == 'MMseqs2-U+E' else False
-        
-        a3m_lines, template_paths = runMMseqs2(
-            prefix=os.path.join(output_dir, 'mmseqs2', 'multimers'),
-            sequences=new_sequences,
-            use_env=use_env,
-            use_filter=use_filter,
-            use_templates=use_templates)
-    else:
-        a3m_lines = []
-        template_paths = []
-        for sequence in new_sequences:
-            a3m_lines.append(f'>1\n{sequence}\n')
-            template_paths.append(None)
-
-    # Store into dictionary.
-    for msa, templates in zip(a3m_lines, template_paths):
-        sequence = msa.splitlines()[1]
-        raw_inputs[sequence] = (msa, templates)
+    for a3m, templates in zip(a3m_lines, template_paths):
+        sequence = a3m.splitlines()[1]
+        raw_inputs[sequence] = (a3m, templates)
 
     return raw_inputs
 
@@ -330,10 +268,22 @@ def getMSA(
 
     single_chain_msa = [parsers.parse_a3m(a3m_string=a3m_lines)]
 
-    # Uniprot MSA?
-    #uniprot_msas = []
-        
     return single_chain_msa
+
+def getUniprotMSA(
+        sequence: str,
+        raw_inputs_from_sequence: Optional[RawInput] = None,
+        ) -> parsers.Msa:
+    """ This function essentially creates an MSA with no information. This 
+    needs to be updated once Uniprot can be searched with MMseqs2. """
+
+    
+    # Get uniprot MSA
+    a3m = f'>101\n{sequence}\n'
+
+    uniprot_msa = [parsers.parse_a3m(a3m_string=a3m)]
+
+    return uniprot_msa
 
 
 def getChainFeatures(
@@ -357,6 +307,19 @@ def getChainFeatures(
             custom_a3m_lines=custom_a3m_lines)
         feature_dict.update(pipeline.make_msa_features(msas=msa))
 
+        if len(set(sequences)) > 1:
+            uniprot_msa = getUniprotMSA(
+                sequence=sequence)
+            valid_feats = msa_pairing.MSA_FEATURES + (
+                'msa_uniprot_accession_identifiers',
+                'msa_species_identifiers',
+            )
+            all_seq_features = {
+                f'{k}_all_seq': v for
+                k, v in pipeline.make_msa_features(uniprot_msa).items()
+                if k in valid_feats}
+            feature_dict.update(all_seq_features)
+        
         # Get template features
         if use_templates:
             new_raw_inputs = copy.deepcopy(raw_inputs[sequence])

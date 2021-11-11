@@ -13,7 +13,7 @@ os.environ['TF_FORCE_UNIFIED_MEMORY'] = '1'
 os.environ['XLA_PYTHON_CLIENT_MEM_FRACTION'] = '2.0'
 
 from setup import getAF2Parser, QueryManager
-from features import getMonomerRawInputs, getMultimerRawInputs
+from features import getRawInputs
 from features import getChainFeatures, getInputFeatures
 from model import getRandomSeeds, getModelNames, getModelRunner
 from model import predictStructure
@@ -30,8 +30,6 @@ RELAX_STIFFNESS = 10.0
 RELAX_EXCLUDE_RESIDUES = []
 RELAX_MAX_OUTER_ITERATIONS = 3
 
-
-
 # Parse arguments.
 parser = getAF2Parser()
 args = parser.parse_args()
@@ -44,23 +42,15 @@ qm = QueryManager(
     max_multimer_length=args.max_multimer_length)
 qm.parse_files()
 
-monomer_queries = qm.monomer_queries
-multimer_queries = qm.multimer_queries
+queries = qm.monomer_queries + qm.multimer_queries
 del qm
 
 # Get raw model inputs.
-raw_inputs_from_sequence, a3m_lines = getMonomerRawInputs(
-    monomer_queries=monomer_queries,
+raw_inputs_from_sequence = getRawInputs(
+    queries=queries,
     msa_mode=args.msa_mode,
     use_templates=args.use_templates,
     output_dir=args.output_dir)
-
-raw_inputs_from_sequence = getMultimerRawInputs(
-    multimer_queries=multimer_queries,
-    msa_mode=args.msa_mode,
-    use_templates=args.use_templates,
-    output_dir=args.output_dir,
-    raw_inputs=raw_inputs_from_sequence)
 
 # Get random seeds.
 seeds = getRandomSeeds(
