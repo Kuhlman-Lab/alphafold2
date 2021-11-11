@@ -13,10 +13,14 @@ import numpy as np
 import pathlib
 from alphafold.data import parsers
 from alphafold.data import pipeline
+from alphafold.data import pipeline_multimer
+from alphafold.data import feature_processing
 from alphafold.data import templates
+from alphafold.common import protein
 from alphafold.notebooks import notebook_utils
-from typing import Sequence, Optional, Dict, Tuple, MutableMapping
+from typing import Sequence, Optional, Dict, Tuple, MutableMapping, Union
 
+from utils import template_utils
 
 # (filename, sequence)
 MonomerQuery = Tuple[str, str]
@@ -29,16 +33,16 @@ RawInput = Dict[str, Tuple[str, str]]
 
 def getMonomerRawInputs(
         monomer_queries: Sequence[MonomerQuery],
-        use_env: bool = True,
+        msa_mode: str,
         use_filter: bool = True,
         use_templates: bool = False,
         output_dir: str = '',
         raw_inputs: Optional[RawInput] = None,
-        ) -> Tuple(RawInput, Dict[str, str]):
+        ) -> Tuple[RawInput, Dict[str, str]]:
     """ Computes and gathers the raw MSAs for the list of monomer queries. """
     # Get already computed MSAs and templates.
-    if raw_inputs_from_sequence:
-        raw_inputs = raw_inputs_from_sequence
+    if raw_inputs:
+        raw_inputs = raw_inputs
     else:
         raw_inputs = {}
     
@@ -58,12 +62,21 @@ def getMonomerRawInputs(
             a3m_files.append(filename)
 
     # Run MMseqs2.
-    a3m_lines, template_paths = runMMseqs2(
-        prefix=os.path.join(output_dir, 'mmseq2', 'monomers')
-        sequences=new_sequences,
-        use_env=use_env,
-        use_filter=use_filter,
-        use_templates=use_templates)
+    if msa_mode != 'single_sequence' and new_sequences != []:
+        use_env = True if msa_mode == 'MMseqs2-U+E' else False
+
+        a3m_lines, template_paths = runMMseqs2(
+            prefix=os.path.join(output_dir, 'mmseqs2', 'monomers'),
+            sequences=new_sequences,
+            use_env=use_env,
+            use_filter=use_filter,
+            use_templates=use_templates)
+    else:
+        a3m_lines = []
+        template_paths = []
+        for sequence in new_sequences:
+            a3m_lines.append(f'>1\n{sequence}\n')
+            template_paths.append(None)
 
     # Store into dictionary.
     for msa, templates in zip(a3m_lines, template_paths):
@@ -81,15 +94,15 @@ def getMonomerRawInputs(
 
 def getMultimerRawInputs(
         multimer_queries: Sequence[MultimerQuery],
-        use_env: bool = True,
+        msa_mode: str,
         use_filter: bool = True,
         use_templates: bool = False,
         output_dir: str = '',
         raw_inputs: Optional[RawInput] = None,
         ) -> RawInput:
     # Get already computed MSAs and templates.
-    if raw_inputs_from_sequence:
-        raw_inputs = raw_inputs_from_sequence
+    if raw_inputs:
+        raw_inputs = raw_inputs
     else:
         raw_inputs = {}
 
@@ -105,12 +118,21 @@ def getMultimerRawInputs(
                 new_sequences.append(sequence)
 
     # Run MMseqs2.
-    a3m_lines, template_paths = runMMseqs2(
-        prefix=os.path.join(output_dir, 'mmseqs2', 'multimers')
-        sequences=new_sequences,
-        use_env=use_env,
-        use_filter=use_filter,
-        use_templates=use_templates)
+    if msa_mode != 'single_sequence' and new_sequences != []:
+        use_env = True if msa_mode == 'MMseqs2-U+E' else False
+        
+        a3m_lines, template_paths = runMMseqs2(
+            prefix=os.path.join(output_dir, 'mmseqs2', 'multimers'),
+            sequences=new_sequences,
+            use_env=use_env,
+            use_filter=use_filter,
+            use_templates=use_templates)
+    else:
+        a3m_lines = []
+        template_paths = []
+        for sequence in new_sequences:
+            a3m_lines.append(f'>1\n{sequence}\n')
+            template_paths.append(None)
 
     # Store into dictionary.
     for msa, templates in zip(a3m_lines, template_paths):
@@ -127,14 +149,11 @@ def runMMseqs2(
         use_filter: bool = True,
         use_templates: bool = False,
         num_templates: int = 20,
-        host_url: str = 'https:/a3m.mmseqs.com'
+        host_url: str = 'https://a3m.mmseqs.com'
         ) -> Tuple[Sequence[str], Sequence[Optional[str]]]:
     """ Computes MSAs and templates by querying MMseqs2 API. """
 
-    def submit(
-            seqs: Sequence[str],
-            mode: str,
-            N: int) -> Dict[str, str]:
+    def submit(seqs: Sequence[str], mode: str, N: int) -> Dict[str, str]:
         """ Submits a query of sequences to MMseqs2 API. """
 
         # Make query from list of sequences.
@@ -184,18 +203,18 @@ def runMMseqs2(
     N, REDO = 101, True
 
     # Deduplicate and keep track of order.
-    unique_seqs = sorted(list(set(seqs)))
-    Ms = [N + unique_seqs.index(seq) for seq in seqs]
+    unique_seqs = sorted(list(set(sequences)))
+    Ms = [N + unique_seqs.index(seq) for seq in sequences]
 
     # Call MMseqs2 API.
     if not os.path.isfile(tar_gz_file):
         while REDO:
             # Resubmit job until it goes through
-            out = submit(seqs=seqs_unique, mode=mode, N=N)
+            out = submit(seqs=unique_seqs, mode=mode, N=N)
             while out['status'] in ['UNKNOWN', 'RATELIMIT']:
                 # Resubmit
                 time.sleep(5 + random.randint(0, 5))
-                out = submit(seqs=seqs_unique, mode=mode, N=N)
+                out = submit(seqs=unique_seqs, mode=mode, N=N)
 
             # Wait for job to finish
             ID = out['id']
@@ -205,13 +224,14 @@ def runMMseqs2(
 
             if out['status'] == 'COMPLETE':
                 REDO = False
-            elif out['status'] == 'ERROR':
+
+            if out['status'] == 'ERROR':
                 REDO = False
                 raise Exception('MMseqs2 API is giving errors. Please confirm '
                                 'your input is a valid protein sequence. If '
                                 'error persists, please try again in an hour.')
-            # Download results
-            download(ID, tar_gz_file)
+        # Download results
+        download(ID, tar_gz_file)
 
     # Get and extract a list of .a3m files.
     a3m_files = [os.path.join(out_path, 'uniref.a3m')]
@@ -220,14 +240,14 @@ def runMMseqs2(
             os.path.join(out_path, 'bfd.mgnify30.metaeuk30.smag30.a3m'))
     if not os.path.isfile(a3m_files[0]):
         with tarfile.open(tar_gz_file) as tar_gz:
-            tar_gz.extractall(path)
+            tar_gz.extractall(out_path)
 
     # Get templates if necessary.
     if use_templates:
         templates = {}
         
         # Read MMseqs2 template outputs and sort templates based on query seq.
-        with open(os.path.join(out_path, 'pdb70.m8', 'r')) as f:
+        with open(os.path.join(out_path, 'pdb70.m8'), 'r') as f:
             for line in f:
                 p = line.rstrip().split()
                 M, pdb = p[0], p[1]
@@ -297,7 +317,7 @@ def runMMseqs2(
 
 def getMSA(
         sequence: str,
-        raw_inputs_from_sequence: Optional[RawInput] = None
+        raw_inputs_from_sequence: Optional[RawInput] = None,
         custom_a3m_lines: Optional[str] = None) -> parsers.Msa:
 
     # Get single-chain MSA.
@@ -311,7 +331,7 @@ def getMSA(
     single_chain_msa = [parsers.parse_a3m(a3m_string=a3m_lines)]
 
     # Uniprot MSA?
-    uniprot_msas = []
+    #uniprot_msas = []
         
     return single_chain_msa
 
@@ -323,7 +343,7 @@ def getChainFeatures(
         custom_a3m_lines: Optional[str] = None,
         custom_templates_path: Optional[str] = None
         ) -> MutableMapping[str, pipeline.FeatureDict]:
-    feature_for_chain = {}
+    features_for_chain = {}
     
     for sequence_idx, sequence in enumerate(sequences):
         feature_dict = {}
@@ -333,7 +353,7 @@ def getChainFeatures(
 
         # Get MSA features
         msa = getMSA(
-            sequence=sequence, raw_inputs=raw_inputs_from_sequence,
+            sequence=sequence, raw_inputs_from_sequence=raw_inputs,
             custom_a3m_lines=custom_a3m_lines)
         feature_dict.update(pipeline.make_msa_features(msas=msa))
 
@@ -355,9 +375,9 @@ def getChainFeatures(
                     num_templates=0, num_res=len(sequence)))
 
         features_for_chain[
-            protein.PDB_CHAIN_IDS[sequence_idx - 1]] = feature_dict
+            protein.PDB_CHAIN_IDS[sequence_idx]] = feature_dict
         
-    return feature_for_chain
+    return features_for_chain
 
 
 def getInputFeatures(
@@ -377,16 +397,16 @@ def getInputFeatures(
                 chain_id] = pipeline_multimer.convert_monomer_features(
                     features, chain_id)
 
-            all_chain_features = pipeline_multimer.add_assembly_features(
-                all_chain_features)
+        all_chain_features = pipeline_multimer.add_assembly_features(
+            all_chain_features)
 
-            input_features = feature_processing.pair_and_merge(
-                all_chain_features=all_chain_features,
-                is_prokaryote=is_prokaryote)
+        input_features = feature_processing.pair_and_merge(
+            all_chain_features=all_chain_features,
+            is_prokaryote=is_prokaryote)
 
-            # Pad MSA to avoid zero-size extra MSA.
-            return pipeline_multimer.pad_msa(input_features,
-                                             min_num_seq=min_num_seq)
+        # Pad MSA to avoid zero-size extra MSA.
+        return pipeline_multimer.pad_msa(input_features,
+                                         min_num_seq=min_num_seq)
 
 
 def make_template(

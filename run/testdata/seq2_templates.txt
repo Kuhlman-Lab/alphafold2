@@ -1,0 +1,1 @@
+pdb70_cs219.ffindex,pdb70_cs219.ffdata,3abf.cif,2opa.cif,3gad.cif,6ogm.cif,3mb2.cif,4grn.cif,3ej9.cif,2op8.cif,3ej3.cif,3gac.cif,3t5s.cif,5uif.cif,3ry0.cif,pdb70_hhm.ffdata,pdb70_a3m.ffdata,pdb70_a3m.ffindex,2x4k.cif,pdb70_hhm.ffindex,6bgn.cif,1hfo.cif
