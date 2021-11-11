@@ -62,17 +62,15 @@ def getAF2Parser() -> FileArgumentParser:
 
     # Sequence Control Arguments
     parser.add_argument('--min_length',
-                        default=16,
+                        default=1,
                         type=int,
-                        help='Minimum single sequence length for an AF2 query. '
-                        'Default is 16 residues. It is highly recommended to '
-                        'keep the default value, unless you know what you\'re '
-                        'doing.')
+                        help='Minimum single chain length for an AF2 query. '
+                        'Default is 1 residue.')
 
     parser.add_argument('--max_length',
                         default=2500,
                         type=int,
-                        help='Maximum single sequence length for an AF2 query. '
+                        help='Maximum single chain length for an AF2 query. '
                         'Default is 2500 residues. If you\'ve got the '
                         'resources and need longer proteins, change this '
                         'argument.')
