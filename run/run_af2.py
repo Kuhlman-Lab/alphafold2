@@ -58,15 +58,10 @@ seeds = getRandomSeeds(
     num_seeds=args.num_seeds)
 
 # Get model names.
-monomer_model_names = ()
-if len(monomer_queries) > 0:
-    monomer_model_names = getModelNames(
-        mode='monomer', use_ptm=args.use_ptm, num_models=args.num_models)
-
-multimer_model_names = ()
-if len(multimer_queries) > 0:
-    multimer_model_names = getModelNames(
-        mode='multimer', num_models=args.num_models)
+model_names = getModelNames(
+    first_query_len=len(queries[0]),
+    last_query_len=len(queries[-1]),
+    use_ptm=args.use_ptm, num_models=args.num_models)
 
 if args.use_amber:
     amber_relaxer = relax.AmberRelaxation(
@@ -74,7 +69,7 @@ if args.use_amber:
         exclude_residues=[], max_outer_iterations=3)
     
 # Predict structures.
-for model_name in monomer_model_names + multimer_model_names:
+for model_name in model_names:
 
     model_runner = getModelRunner(
         model_name=model_name,

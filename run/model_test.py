@@ -11,16 +11,14 @@ class TestModel(unittest.TestCase):
         self.assertEqual(len(seeds), 5)
 
     def test_get_model_names(self) -> None:
-        names = model.getModelNames(mode='monomer', use_ptm=False, num_models=3)
+        names = model.getModelNames(2, 2, use_ptm=False, num_models=3)
         self.assertEqual(names, ('model_1', 'model_2', 'model_3'))
 
-        names = model.getModelNames(mode='monomer', use_ptm=True, num_models=2)
-        self.assertEqual(names, ('model_1_ptm', 'model_2_ptm'))
+        names = model.getModelNames(3, 3, use_ptm=True, num_models=2)
+        self.assertEqual(names, ('model_1_multimer', 'model_2_multimer'))
 
-        names = model.getModelNames(mode='multimer', num_models=5)
-        self.assertEqual(names, ('model_1_multimer', 'model_2_multimer',
-                                 'model_3_multimer', 'model_4_multimer',
-                                 'model_5_multimer'))
+        names = model.getModelNames(2, 3, use_ptm=False, num_models=1)
+        self.assertEqual(names, ('model_1', 'model_1_multimer'))
 
     def test_get_model_runner(self) -> None:
         # Just testing to make sure that it can run.
