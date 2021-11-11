@@ -100,6 +100,13 @@ def getAF2Parser() -> FileArgumentParser:
                         'query UniRef database. single_sequence = Don\'t '
                         'generate an MSA.')
 
+    parser.add_argument('--is_prokaryote',
+                        action='store_true',
+                        help='Whether or not the queries are prokaryotic '
+                        'sequences or not. If the origins are eukaryotic or '
+                        'unknown, do not include this flag. CURRENTLY DOES NOT '
+                        'DO ANYTHING!.')
+
     # Relaxation Arguments
     parser.add_argument('--use_amber',
                         action='store_true',
@@ -109,12 +116,12 @@ def getAF2Parser() -> FileArgumentParser:
                         'violations. Default is False.')
 
     # Template Arguments
-    parsers.add_argument('--use_templates',
+    parser.add_argument('--use_templates',
                          action='store_true',
                          help='Whether or not to use templates as determined '
                          'by MMseqs2. Default is False.')
 
-    parsers.add_argument('--custom_templates_path',
+    parser.add_argument('--custom_templates_path',
                          type=str,
                          help='Path to directory containing custom pdb files '
                          'to be used as templates for AF2. Note that '
@@ -122,31 +129,31 @@ def getAF2Parser() -> FileArgumentParser:
                          'be used for every query sequence!')
 
     # Model Control Arguments
-    parsers.add_argument('--use_ptm',
+    parser.add_argument('--use_ptm',
                          action='store_true',
-                         help='Uses the PTM fine-tuned model parameters to '
+                         help='Uses the pTM fine-tuned model parameters to '
                          'get PAE per structure. Disable to use the original '
                          'model parameters. Default is False')
 
-    parsers.add_argument('--num_models',
+    parser.add_argument('--num_models',
                          default=5,
                          type=int,
                          choices=[1, 2, 3, 4, 5],
                          help='Number of models to run. Choose an integer from '
                          '1 to 5. Default is 5.')
 
-    parsers.add_argument('--num_ensemble',
+    parser.add_argument('--num_ensemble',
                          default=1,
                          type=int,
                          help='The trunk of the network is run multiple times '
                          'with different random choices for the MSA cluster '
                          'centers. Default is 1 but CASP14 settings is 8.')
 
-    parsers.add_argument('--random_seed',
+    parser.add_argument('--random_seed',
                          type=int,
                          help='Random seed for stochastic features of the AF2.')
 
-    parsers.add_argument('--num_seeds',
+    parser.add_argument('--num_seeds',
                          default=1,
                          type=int,
                          help='How many different random seeds to try for each '
@@ -154,21 +161,21 @@ def getAF2Parser() -> FileArgumentParser:
                          'also provided, then it will guarantee that that seed '
                          'will be run. Default is 1.')
 
-    parsers.add_argument('--is_training',
+    parser.add_argument('--is_training',
                          action='store_true',
                          help='Enables the stochastic part of the model '
                          '(dropout). When coupled with \'num_seeds\' can be '
                          'used to "sample" a diverse set of structures. False '
                          '(NOT including this option) is recommended at first.')
 
-    parsers.add_argument('--max_recycle',
+    parser.add_argument('--max_recycle',
                          default=3,
                          type=int,
                          help='Controls the maximum number of times the '
                          'structure is fed back into the neural network for '
                          'refinement. Default is 3.')
 
-    parsers.add_argument('--recycle_tol',
+    parser.add_argument('--recycle_tol',
                          default=0,
                          type=float,
                          help='Tolerance for deciding when to stop recycling '
@@ -183,9 +190,9 @@ class QueryManager(object):
 
     def __init__(self,
             input_dir: str,
-            min_length: int,
-            max_length: int,
-            max_multimer_length: int) -> None:
+            min_length: int = 16,
+            max_length: int = 2500,
+            max_multimer_length: int = 2500) -> None:
         self.min_length = min_length
         self.max_length = max_length
         self.max_multimer_length = max_multimer_length
@@ -230,11 +237,11 @@ class QueryManager(object):
                 queries = query_utils.parse_csv_files(
                     files=self.files['csv'])
             # Validate queries by checking sequence composition and lengths
-            queries = validate_queries(
+            queries = query_utils.validate_queries(
                 input_queries=queries,
-                min_length=min_length,
-                max_length=max_length,
-                max_multimer_length=max_multimer_length)
+                min_length=self.min_length,
+                max_length=self.max_length,
+                max_multimer_length=self.max_multimer_length)
 
             # Add queries to appropriate lists. Important for handling multiple
             # models.
