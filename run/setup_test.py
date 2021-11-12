@@ -1,5 +1,4 @@
 import os
-import numpy as np
 import unittest
 
 import setup
@@ -21,9 +20,10 @@ class TestQueryParsing(unittest.TestCase):
                        os.path.join('testdata', 'seq1_templates.txt'),
                        os.path.join('testdata', 'seq1_a3m.txt'),
                        os.path.join('testdata', 'seq2_templates.txt')]
-        self.monomer_queries = [(fasta_path, seq1), (fasta_path, seq2)]
-        self.multimer_queries = [(csv_path, oligo1, [seq1, seq2]),
-                                 (csv_path, oligo2, [seq3])]
+        self.monomer_queries = [(os.path.basename(fasta_path), seq1),
+                                (os.path.basename(fasta_path), seq2)]
+        self.multimer_queries = [(os.path.basename(csv_path), oligo1, [seq1, seq2]),
+                                 (os.path.basename(csv_path), oligo2, [seq3])]
         
     def test_QueryManager(self) -> None:
         qm = setup.QueryManager(input_dir=self.input_dir)
@@ -33,8 +33,7 @@ class TestQueryParsing(unittest.TestCase):
 
         qm.parse_files()
 
-        self.assertEqual(qm.monomer_queries, self.monomer_queries)
-        self.assertEqual(qm.multimer_queries, self.multimer_queries)
+        self.assertEqual(qm.queries, self.monomer_queries+self.multimer_queries)
         
         
 if __name__ == '__main__':

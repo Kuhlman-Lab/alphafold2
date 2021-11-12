@@ -23,13 +23,6 @@ from utils.utils import compressed_pickle, get_hash, full_pickle
 from alphafold.common import protein
 from alphafold.relax import relax
 
-MAX_TEMPLATE_HITS = 20
-RELAX_MAX_ITERATIONS = 0
-RELAX_ENERGY_TOLERANCE = 2.39
-RELAX_STIFFNESS = 10.0
-RELAX_EXCLUDE_RESIDUES = []
-RELAX_MAX_OUTER_ITERATIONS = 3
-
 # Parse arguments.
 parser = getAF2Parser()
 args = parser.parse_args()
@@ -45,7 +38,7 @@ qm = QueryManager(
     max_multimer_length=args.max_multimer_length)
 qm.parse_files()
 
-queries = qm.monomer_queries + qm.multimer_queries
+queries = qm.queries
 del qm
 
 # Get raw model inputs.
@@ -90,7 +83,7 @@ for model_name in model_names:
         elif len(query) == 2 and 'multimer' in model_name:
             continue
 
-        prefix = query[0].split('.')[:-1] + model_name
+        prefix = '.'.join(query[0].split('.')[:-1]) + '_' + model_name
         
         sequences = query[-1]
 
@@ -117,7 +110,7 @@ for model_name in model_names:
             else:
                 model_type = 'monomer'
 
-            jobname = prefix + f'seed_{seed_idx}'
+            jobname = prefix + f'_seed_{seed_idx}'
                 
             result = predictStructure(
                 model_runner=model_runner,
