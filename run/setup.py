@@ -204,8 +204,7 @@ class QueryManager(object):
 
         self.files = {}
         self.others = []
-        self.monomer_queries = []
-        self.multimer_queries = []
+        self.queries = []
 
         # Detect .fasta and .csv files from the input directory.
         onlyfiles = [f for f in os.listdir(input_dir) if os.path.isfile(
@@ -238,22 +237,15 @@ class QueryManager(object):
                     files=self.files['csv'])
 
             # Validate queries by checking sequence composition and lengths
-            queries = query_utils.validate_queries(
+            queries = query_utils.clean_and_validate_queries(
                 input_queries=queries,
                 min_length=self.min_length,
                 max_length=self.max_length,
                 max_multimer_length=self.max_multimer_length)
 
-            # Add queries to appropriate lists. Important for handling multiple
-            # models.
-            for query in queries:
-                if len(query) == 2:
-                    self.monomer_queries.append(query)
-                else:
-                    self.multimer_queries.append(query)
-
+            # Add queries to overall query list.
+            self.queries += queries
+                            
         # Remove duplicate queries to reduce redundancy
-        self.monomer_queries = query_utils.detect_duplicate_queries(
-            query_list=self.monomer_queries)
-        self.multimer_queries = query_utils.detect_duplicate_queries(
-            query_list=self.multimer_queries)        
+        self.queries = query_utils.detect_duplicate_queries(
+            query_list=self.queries)
