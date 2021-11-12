@@ -101,8 +101,8 @@ for model_name in model_names:
             sequences=sequences,
             raw_inputs=raw_inputs_from_sequence,
             use_templates=args.use_templates,
-            custom_a3m_lines=args.custom_msa_path,
-            custom_templates_path=args.custom_template_path)
+            custom_msa_path=args.custom_msa_path,
+            custom_template_path=args.custom_template_path)
         
         input_features = getInputFeatures(
             sequences=sequences,

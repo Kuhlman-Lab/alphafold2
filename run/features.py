@@ -21,7 +21,7 @@ from alphafold.common import protein
 from alphafold.notebooks import notebook_utils
 from typing import Sequence, Optional, Dict, Tuple, MutableMapping, Union
 
-from utils import template_utils
+from utils import template_utils, utils
 
 # (filename, sequence)
 MonomerQuery = Tuple[str, str]
@@ -251,7 +251,46 @@ def runMMseqs2(
         return (a3m_lines[0], template_paths[0])
     else:
         return (a3m_lines, template_paths)
-            
+
+
+def getCustomMSADict(custom_msa_path: str) -> Dict[str, str]:
+
+    custom_msa_dict = {}
+    
+    onlyfiles = [f for f in os.listdir(custom_msa_path)
+                 if os.path.isfile(os.path.join(custom_msa_path, f))]
+    for filename in onlyfile:
+        extension = filename.split('.')[-1]
+        if extension == '.a3m':
+            with open(os.path.join(custom_msa_path, filename)) as f:
+                a3m_lines = f.read()
+
+            capture_sequence = False
+            for line in a3m_lines.splitlines():
+                line = line.strip()
+                if line.startswith('>'):
+                    capture_sequence = True # Found first description
+                    continue
+                elif not line:
+                    continue # Skip blank lines
+                if capture_sequence:
+                    sequence = line
+                    break
+
+            if sequence in custom_msa_dict:
+                raise ValueError(
+                    f'Multiple custom MSAs found for the sequence the same '
+                    f'sequence: {sequence}. There can only be one custom MSA '
+                    f'per sequence.')
+            custom_msa_dict[sequence] = a3m_lines
+
+    if custom_msa_dict == {}:
+        raise ValueError(
+            f'No custom MSAs detected in {custom_msa_path}. Double-check the '
+            f'path or no not provide the --custom_msa_path argument.')
+        
+    return custom_msa_dict
+    
 
 def getMSA(
         sequence: str,
@@ -270,16 +309,16 @@ def getMSA(
 
     return single_chain_msa
 
+
 def getUniprotMSA(
         sequence: str,
         raw_inputs_from_sequence: Optional[RawInput] = None,
         ) -> parsers.Msa:
     """ This function essentially creates an MSA with no information. This 
     needs to be updated once Uniprot can be searched with MMseqs2. """
-
     
     # Get uniprot MSA
-    a3m = f'>101\n{sequence}\n'
+    a3m = f'>{utils.get_hash(sequence)}\n{sequence}\n'
 
     uniprot_msa = [parsers.parse_a3m(a3m_string=a3m)]
 
@@ -290,11 +329,16 @@ def getChainFeatures(
         sequences: Sequence[str],
         raw_inputs: RawInput,
         use_templates: bool = False,
-        custom_a3m_lines: Optional[str] = None,
-        custom_templates_path: Optional[str] = None
+        custom_msa_path: Optional[str] = None,
+        custom_template_path: Optional[str] = None
         ) -> MutableMapping[str, pipeline.FeatureDict]:
     features_for_chain = {}
-    
+
+    if custom_msa_path:
+        custom_msa_dict = getCustomMSADict(custom_msa_path)
+    else:
+        custom_msa_dict = {}
+        
     for sequence_idx, sequence in enumerate(sequences):
         feature_dict = {}
         # Get sequence features
@@ -302,9 +346,12 @@ def getChainFeatures(
             sequence=sequence, description='query', num_res=len(sequence)))
 
         # Get MSA features
-        msa = getMSA(
-            sequence=sequence, raw_inputs_from_sequence=raw_inputs,
-            custom_a3m_lines=custom_a3m_lines)
+        if sequence in custom_msa_dict:
+            msa = getMSA(
+                sequence=sequence, custom_a3m_lines=custom_msa_dict[sequence])
+        else:
+            msa = getMSA(
+                sequence=sequence, raw_inputs_from_sequence=raw_inputs)
         feature_dict.update(pipeline.make_msa_features(msas=msa))
 
         if len(set(sequences)) > 1:
