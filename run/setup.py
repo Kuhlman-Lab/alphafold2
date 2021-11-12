@@ -5,6 +5,7 @@ input query parsing.
 
 import os
 import argparse
+import pathlib
 from typing import Sequence
 from utils import query_utils
 
@@ -59,6 +60,16 @@ def getAF2Parser() -> FileArgumentParser:
                         action='store_true',
                         help='Whether or not to write output pdb files. '
                         'Default is False.')
+
+    parser.add_argument('--show_timing',
+                        action='store_true',
+                        help='Whether or not to display run times at the end. '
+                        'Default is False.')
+
+    parser.add_argument('--save_timing',
+                        action='store_true',
+                        help='Whether or not to save run times in pickle file '
+                        'at the end of the run. Default is False.')
 
     # Sequence Control Arguments
     parser.add_argument('--min_length',
@@ -237,7 +248,7 @@ class QueryManager(object):
                 f'No input .fasta or .csv files detected in '
                 '{input_dir}')
 
-        filenames = [pathlib.Path(p).stem for p in self.files.values()]
+        filenames = [pathlib.Path(p).stem for l in self.files.values() for p in l]
         if len(filenames) != len(set(filenames)):
             raise ValueError('All input files must have a unique basename.')
         
