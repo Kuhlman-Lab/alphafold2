@@ -79,17 +79,16 @@ for model_name in model_names:
         recycle_tol=args.recycle_tol,
         params_dir=args.params_dir)
 
-    for idx, query in enumerate(queries):
+    for query in queries:
         # Skip any multimer queries if current model_runner is a monomer model.
         if len(query) == 3 and 'multimer' not in model_name:
             continue
         # Skip any monomer queries if current model_runner is a multimer model.
         elif len(query) == 2 and 'multimer' in model_name:
             continue
-            
-        full_sequence = getFullSequence(query)
-        jobname = get_hash(full_sequence)
-                
+
+        prefix = query[0].split('.')[:-1] + model_name
+        
         sequences = query[-1]
 
         if isinstance(sequences, str):
@@ -110,12 +109,14 @@ for model_name in model_names:
         del filename, custom_a3m, sequences, features_for_chain
         del full_sequence
 
-        for seed in seeds:
+        for seed_idx, seed in enumerate(seeds):
             if 'multimer' in model_name:
                 model_type = 'multimer'
             else:
                 model_type = 'monomer'
 
+            jobname = prefix + f'seed_{seed_idx}'
+                
             result = predictStructure(
                 model_runner=model_runner,
                 feature_dict=input_features,
@@ -126,7 +127,7 @@ for model_name in model_names:
                 unrelaxed_pdb = protein.to_pdb(result['unrelaxed_protein'])
 
                 unrelaxed_pred_path = os.path.join(
-                    args.output_dir, f'unrelaxed_prediction_{idx}.pdb')
+                    args.output_dir, f'{jobname}_unrelaxed.pdb')
                 with open(unrelaxed_pred_path, 'w') as f:
                     f.write(unrelaxed_pdb)
 
@@ -138,7 +139,7 @@ for model_name in model_names:
 
                 if not args.dont_write_pdbs:
                     relaxed_pred_path = os.path.join(
-                        args.output_dir, f'relaxed_prediction_{idx}.pdb')
+                        args.output_dir, f'{jobname}_relaxed.pdb')
                     with open(relaxed_pred_path, 'w') as f:
                         f.write(relaxed_pdb)
 
@@ -147,7 +148,7 @@ for model_name in model_names:
                 del relaxed_pdb
 
             results_path = os.path.join(
-                args.output_dir, f'results_{idx}')
+                args.output_dir, f'{jobname}_results')
             if args.compress_output:
                 compressed_pickle(results_path, result)
             else:
