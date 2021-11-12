@@ -368,17 +368,15 @@ def getChainFeatures(
             feature_dict.update(all_seq_features)
         
         # Get template features
-        if use_templates:
+        if custom_template_path:
+            feature_dict.update(
+                get_custom_template_features(custom_templates_path))
+        elif use_templates:
             new_raw_inputs = copy.deepcopy(raw_inputs[sequence])
             a3m = new_raw_inputs[0]
             template = new_raw_inputs[1]
 
-            if custom_templates_path:
-                feature_dict.update(
-                    get_custom_template_features(custom_templates_path))
-            else:
-                feature_dict.update(
-                    make_template(sequence, a3m, template))
+            feature_dict.update(make_template(sequence, a3m, template))
         else:
             feature_dict.update(
                 notebook_utils.empty_placeholder_template_features(

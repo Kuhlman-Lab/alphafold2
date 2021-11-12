@@ -201,6 +201,7 @@ def getOutputDir(out_dir: str) -> str:
 
     os.makedirs(out_dir, exist_ok=True)
 
+    return out_dir
 
 class QueryManager(object):
     """Manager that will parse, validate, and store queries. """

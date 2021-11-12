@@ -59,7 +59,7 @@ def clean_and_validate_queries(
 
     for query in input_queries:
         query = _clean_and_validate_single_query(
-            monomer_query=query,
+            query=query,
             min_length=min_length,
             max_length=max_length,
             max_multimer_length=max_multimer_length)
@@ -80,8 +80,8 @@ def _clean_and_validate_single_query(
     filename = query[0]
     sequences = query[-1]
     if len(query) == 2:
-        # If a monomer query is given, then default to empty oligomeric state.
-        oligomer = ''
+        # If a monomer query is given, then it has an oligomeric state of 1.
+        oligomer = '1'
     else:
         oligomer = query[1]
 
@@ -127,7 +127,7 @@ def _clean_and_validate_single_query(
     if oligomer == '':
         print(f'WARNING: Inferring oligomeric state from sequences provided in '
               f'{clean_filename}.')
-        clean_oligomer = ':'.join(['1'] * len(clean_sequence))
+        clean_oligomer = ':'.join(['1'] * len(clean_sequences))
     else:
         clean_oligomer = oligomer.translate(
             str.maketrans('', '', ' \n\t'))
