@@ -7,7 +7,7 @@ from typing import Any
 
 # Saves the 'data' with the 'title' and adds the .pickle
 def full_pickle(title: str, data: Any) -> None:
-    pikd = open(title + '.pickle', 'wb')
+    pikd = open(title + '.pkl', 'wb')
     pickle.dump(data, pikd)
     pikd.close()
 
