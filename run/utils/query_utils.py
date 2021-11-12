@@ -1,8 +1,8 @@
 """ Utility functions for parsing queries from a list of input files. """
 
 import os
+import csv
 from typing import Sequence, Tuple, Union
-import pandas as pd
 from alphafold.common import residue_constants
 from alphafold.data import pipeline
 
@@ -30,46 +30,20 @@ def parse_fasta_files(files: Sequence[str]) -> Sequence[MonomerQuery]:
     return query_list
 
 
-def parse_a3m_files(files: Sequence[str]) -> Sequence[MonomerQuery]:
-    """ Parse a list of .a3m files and return a list of monomer queries. """
-    query_list = []
-
-    for filename in files:
-        with open(filename, 'r') as f:
-            a3m_string = f.read()
-
-        # Capture the first sequence as the query sequence.
-        capture_sequence = False
-        for line in a3m_string.splitlines():
-            line = line.strip()
-            if line.startswith('>'):
-                capture_sequence = True # Found first description.
-                continue
-            elif not line:
-                continue # Skip blank lines.
-            if capture_sequence:
-                sequence = line
-                break
-
-        query_list.append( (filename, sequence) )
-
-    return query_list
-
-
 def parse_csv_files(files: Sequence[str]) -> Sequence[MultimerQuery]:
     """ Parse a list of .csv files and return a list of multimer queries. """
     query_list = []
 
     for filename in files:
-        query_df = pd.read_csv(filename, header=None)
+        with open(filename, newline='') as f:
+            reader = csv.reader(f, delimiter=',')
+            # Each row is a single query with possibly many sequences
+            # summarized by the oligomer state.
+            for row in reader:
+                oligomer = row[0]
+                sequences = row[1:]
 
-        # Each row is a single query with possibly many sequences summarized by
-        # the oligomer state.
-        for row_idx in range(len(query_df)):
-            oligomer = query_df.iloc[row_idx][0]
-            sequences = list(query_df.iloc[row_idx][1:])
-
-            query_list.append( (filename, oligomer, sequences) )
+                query_list.append( (filename, oligomer, sequences) )
 
     return query_list
 
@@ -106,8 +80,8 @@ def _clean_and_validate_single_query(
     filename = query[0]
     sequences = query[-1]
     if len(query) == 2:
-        # If a monomer query is given, then it has oligomeric state of 1.
-        oligomer = '1'
+        # If a monomer query is given, then default to empty oligomeric state.
+        oligomer = ''
     else:
         oligomer = query[1]
 
@@ -122,10 +96,6 @@ def _clean_and_validate_single_query(
     # Remove whitespaces, tabs, and end lines and uppercase all sequences.
     clean_sequences = []
     for sequence in sequences:
-        # THESE LINES SHOULD BE REMOVED WHEN PANDAS ISN'T USED FOR CSV PARSING.
-        if pd.isnull(sequence):
-            continue
-
         clean_sequence = sequence.translate(
             str.maketrans('', '', ' \n\t')).upper()
         aatypes = set(residue_constants.restypes) # 20 canonical aatypes.
@@ -154,7 +124,7 @@ def _clean_and_validate_single_query(
             f'sequences.')
 
     # Clean oligomer and validate shape
-    if pd.isnull(oligomer): #THIS LINE SHOULD BE CHANGED WHEN PANDAS IS GONE.
+    if oligomer == '':
         print(f'WARNING: Inferring oligomeric state from sequences provided in '
               f'{clean_filename}.')
         clean_oligomer = ':'.join(['1'] * len(clean_sequence))
