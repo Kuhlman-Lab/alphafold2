@@ -12,7 +12,7 @@ import os
 os.environ['TF_FORCE_UNIFIED_MEMORY'] = '1'
 os.environ['XLA_PYTHON_CLIENT_MEM_FRACTION'] = '2.0'
 
-from setup import getAF2Parser, QueryManager
+from setup import getAF2Parser, QueryManager, getOutputDir
 from features import getRawInputs
 from features import getChainFeatures, getInputFeatures
 from model import getRandomSeeds, getModelNames, getModelRunner
@@ -34,6 +34,9 @@ RELAX_MAX_OUTER_ITERATIONS = 3
 parser = getAF2Parser()
 args = parser.parse_args()
 
+# Get the output directory.
+output_dir = getOutputDir(out_dir=args.output_dir)
+
 # Parse queries.
 qm = QueryManager(
     input_dir=args.input_dir,
@@ -50,7 +53,7 @@ raw_inputs_from_sequence = getRawInputs(
     queries=queries,
     msa_mode=args.msa_mode,
     use_templates=args.use_templates,
-    output_dir=args.output_dir)
+    output_dir=output_dir)
 
 # Get random seeds.
 seeds = getRandomSeeds(
@@ -127,7 +130,7 @@ for model_name in model_names:
                 unrelaxed_pdb = protein.to_pdb(result['unrelaxed_protein'])
 
                 unrelaxed_pred_path = os.path.join(
-                    args.output_dir, f'{jobname}_unrelaxed.pdb')
+                    output_dir, f'{jobname}_unrelaxed.pdb')
                 with open(unrelaxed_pred_path, 'w') as f:
                     f.write(unrelaxed_pdb)
 
@@ -139,7 +142,7 @@ for model_name in model_names:
 
                 if not args.dont_write_pdbs:
                     relaxed_pred_path = os.path.join(
-                        args.output_dir, f'{jobname}_relaxed.pdb')
+                        output_dir, f'{jobname}_relaxed.pdb')
                     with open(relaxed_pred_path, 'w') as f:
                         f.write(relaxed_pdb)
 
@@ -148,7 +151,7 @@ for model_name in model_names:
                 del relaxed_pdb
 
             results_path = os.path.join(
-                args.output_dir, f'{jobname}_results')
+                output_dir, f'{jobname}_results')
             if args.compress_output:
                 compressed_pickle(results_path, result)
             else:

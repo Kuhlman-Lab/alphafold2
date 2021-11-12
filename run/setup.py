@@ -188,7 +188,19 @@ def getAF2Parser() -> FileArgumentParser:
                          'recycles).')
                         
     return parser
-    
+
+
+def getOutputDir(out_dir: str) -> str:
+    if out_dir == '':
+        from datetime import datetime
+
+        dt = str(datetime.now()).split('.')[0]
+        dt = dt.replace(' ', '_')
+
+        out_dir = 'prediction_' + dt
+
+    os.makedirs(out_dir, exist_ok=True)
+
 
 class QueryManager(object):
     """Manager that will parse, validate, and store queries. """
