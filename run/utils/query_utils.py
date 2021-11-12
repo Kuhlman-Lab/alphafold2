@@ -12,6 +12,9 @@ MonomerQuery = Tuple[str, str]
 # (filename, oligomer_state, [sequences])
 MultimerQuery = Tuple[str, str, Sequence[str]]
 
+# (filename, [sequences])
+CleanQuery = Tuple[str, str, Sequence[str]]
+
 
 def parse_fasta_files(files: Sequence[str]) -> Sequence[MonomerQuery]:
     """ Parse a list of .fasta files and return a list of monomer queries. """
@@ -53,7 +56,7 @@ def clean_and_validate_queries(
         min_length: int,
         max_length: int,
         max_multimer_length: int
-    ) -> Union[Sequence[MonomerQuery], Sequence[MultimerQuery]]:
+    ) -> Sequence[CleanQuery]:
     """ Validates and cleans input queries. """
     query_list = []
 
@@ -75,7 +78,7 @@ def clean_and_validate_queries(
     
 def _clean_and_validate_single_query(
         query: Union[MonomerQuery, MultimerQuery], min_length: int,
-        max_length: int, max_multimer_length: int) -> MonomerQuery:
+        max_length: int, max_multimer_length: int) -> CleanQuery:
     """Checks that the parsed query is ok and returns a clean version of it."""
     filename = query[0]
     sequences = query[-1]
@@ -150,8 +153,11 @@ def _clean_and_validate_single_query(
             f'states than number of sequences: {len(oligos)} < '
             f'{len(clean_sequences)}. Oligomer is {clean_oligomer}.')
 
-    total_multimer_length = sum(
-        [len(seq) * int(oligo) for seq, oligo in zip(clean_sequences, oligos)])
+    clean_sequences = [[seq] * int(oligo)
+        for seq, oligo in zip(clean_sequences, oligos)]
+    clean_sequences = [chain for homomer in clean_sequences for chain in homomer]
+    
+    total_multimer_length = sum([len(chain) for chain in clean_sequences])
     if total_multimer_length > max_multimer_length:
         raise ValueError(
             f'Query parsed from {clean_filename} has a total multimer length '
@@ -163,19 +169,14 @@ def _clean_and_validate_single_query(
         print(f'WARNING: The accuracy of the multimer system has not been '
               f'fully validated above 1536 residues. Query from '
               f'{clean_filename} is a total length of {total_multimer_length}.')
-
-    # If there is only one sequence and it is the same length as total multimer
-    # then the query is a monomer query.
-    if len(clean_sequences) == 1 and (
-            total_multimer_length == len(clean_sequences[0])):
-        return (clean_filename, clean_sequences[0])
-    else:
-        return (clean_filename, clean_oligomer, clean_sequences)
+        
+    # If there is only one sequence, then the query is a monomer query.
+    # If there is more than one sequence, then the query is a multimer query.
+    return (clean_filename, clean_sequences)
 
     
 def detect_duplicate_queries(
-        query_list: Sequence[Union[MonomerQuery, MultimerQuery]]
-        ) -> Sequence[Union[MonomerQuery, MultimerQuery]]:
+        query_list: Sequence[CleanQuery]) -> Sequence[CleanQuery]:
     """ Detects duplicate queries from query list. If a same query comes from 
         two different sources, it is considered a duplicate. """
     clean_query_list = []
@@ -188,24 +189,13 @@ def detect_duplicate_queries(
             dupe = False
             
             for old_query in clean_query_list:
-                if _check_dupe(old_query, query):
+                if old_query[1] == query[1]:
                     dupe = True
 
             if dupe == False:
                 clean_query_list.append(query)
 
     return clean_query_list
-
-
-def _check_dupe(old_query: Union[MonomerQuery, MultimerQuery],
-                new_query: Union[MonomerQuery, MultimerQuery]) -> bool:
-
-    old_fullseq = getFullSequence(query=old_query)
-    new_fullseq = getFullSequence(query=new_query)
-    if old_fullseq == new_fullseq:
-        return True
-    else:
-        return False
     
 
 def getFullSequence(query: Union[MonomerQuery, MultimerQuery]) -> str:

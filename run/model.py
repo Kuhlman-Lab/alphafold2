@@ -37,14 +37,14 @@ def getRandomSeeds(
         
 
 def getModelNames(
-        first_query_len: int, last_query_len: int,
+        first_n_seqs: int, last_n_seqs: int,
         use_ptm: bool = True, num_models: int = 5) -> Tuple[str]:
 
     include_monomer = False
     include_multimer = False
-    if first_query_len == 2:
+    if first_n_seqs == 1:
         include_monomer = True
-    if last_query_len == 3:
+    if last_n_seqs > 1:
         include_multimer = True
 
     model_names = ()

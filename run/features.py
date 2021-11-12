@@ -23,17 +23,14 @@ from typing import Sequence, Optional, Dict, Tuple, MutableMapping, Union
 
 from utils import template_utils, utils
 
-# (filename, sequence)
-MonomerQuery = Tuple[str, str]
-
-# (filename, oligomer_state, [sequences])
-MultimerQuery = Tuple[str, str, Sequence[str]]
+# (filename, [sequence])
+CleanQuery = Tuple[str, str]
 
 # {sequence: (raw MSA, raw templates)}
 RawInput = Dict[str, Tuple[str, str]]
 
 def getRawInputs(
-        queries: Sequence[Union[MonomerQuery, MultimerQuery]],
+        queries: Sequence[CleanQuery],
         msa_mode: str,
         use_filter: bool = True,
         use_templates: bool = False,
@@ -47,10 +44,7 @@ def getRawInputs(
     unique_sequences = []
     for query in queries:
         filename = query[0]
-        seqs = query[-1]
-
-        if isinstance(seqs, str):
-            seqs = [seqs]
+        seqs = query[1]
 
         for seq in seqs:
             if seq not in unique_sequences:

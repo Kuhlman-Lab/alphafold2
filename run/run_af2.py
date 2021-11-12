@@ -55,8 +55,8 @@ seeds = getRandomSeeds(
 
 # Get model names.
 model_names = getModelNames(
-    first_query_len=len(queries[0]),
-    last_query_len=len(queries[-1]),
+    first_n_seqs=len(queries[0][1]),
+    last_n_seqs=len(queries[-1][1]),
     use_ptm=args.use_ptm, num_models=args.num_models)
 
 if args.use_amber:
@@ -75,20 +75,26 @@ for model_name in model_names:
         recycle_tol=args.recycle_tol,
         params_dir=args.params_dir)
 
+    file_id = None
     for query in queries:
         # Skip any multimer queries if current model_runner is a monomer model.
-        if len(query) == 3 and 'multimer' not in model_name:
+        if len(query[1]) > 1 and 'multimer' not in model_name:
             continue
         # Skip any monomer queries if current model_runner is a multimer model.
-        elif len(query) == 2 and 'multimer' in model_name:
+        elif len(query[1]) == 1 and 'multimer' in model_name:
             continue
 
-        prefix = '.'.join(query[0].split('.')[:-1]) + '_' + model_name
-        
-        sequences = query[-1]
+        if file_id == None:
+            file_id = query[0]
+            idx = 0
+        elif file_id == query[0]:
+            idx += 1
+        else:
+            file_id = query[0]
+            idx = 0
 
-        if isinstance(sequences, str):
-            sequences = [sequences]
+        prefix = '.'.join(file_id.split('.')[:-1]) + f'_{idx}_' + model_name
+        sequences = query[1]
 
         features_for_chain = getChainFeatures(
             sequences=sequences,
