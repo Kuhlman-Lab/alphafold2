@@ -109,8 +109,7 @@ for model_name in model_names:
             chain_features=features_for_chain,
             is_prokaryote=args.is_prokaryote)
         
-        del filename, custom_a3m, sequences, features_for_chain
-        del full_sequence
+        del sequences, features_for_chain
 
         for seed_idx, seed in enumerate(seeds):
             if 'multimer' in model_name:
@@ -157,4 +156,4 @@ for model_name in model_names:
             else:
                 full_pickle(results_path, result)
                     
-            del result, results_path
+            del model_type, jobname, result, results_path
