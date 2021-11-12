@@ -48,11 +48,13 @@ queries = qm.queries
 del qm
 
 # Get raw model inputs.
+t_0 = time.time()
 raw_inputs_from_sequence = getRawInputs(
     queries=queries,
     msa_mode=args.msa_mode,
     use_templates=args.use_templates,
     output_dir=output_dir)
+timings['raw_inputs'] = time.time() - t_0
 
 # Get random seeds.
 seeds = getRandomSeeds(
