@@ -105,6 +105,13 @@ def getAF2Parser() -> FileArgumentParser:
                         'unknown, do not include this flag. CURRENTLY DOES NOT '
                         'DO ANYTHING!.')
 
+    parser.add_argument('--custom_msa_path',
+                        type=str,
+                        help='Path to directory containing custom .a3m files '
+                        'to be used as custom MSAs for AF2. Note that '
+                        'specifying this will cause the custom MSA to be used '
+                        'for every appropriate query.')
+
     # Relaxation Arguments
     parser.add_argument('--use_amber',
                         action='store_true',
@@ -119,9 +126,9 @@ def getAF2Parser() -> FileArgumentParser:
                          help='Whether or not to use templates as determined '
                          'by MMseqs2. Default is False.')
 
-    parser.add_argument('--custom_templates_path',
+    parser.add_argument('--custom_template_path',
                          type=str,
-                         help='Path to directory containing custom pdb files '
+                         help='Path to directory containing custom .pdb files '
                          'to be used as templates for AF2. Note that '
                          'specifying this will cause the custom templates to '
                          'be used for every query sequence!')
