@@ -86,12 +86,6 @@ for model_name in model_names:
         # Skip any monomer queries if current model_runner is a multimer model.
         elif len(query) == 2 and 'multimer' in model_name:
             continue
-
-        filename = query[0]
-        if filename[-4:] == '.a3m':
-            custom_a3m = a3m_lines[filename]
-        else:
-            custom_a3m = None
             
         full_sequence = getFullSequence(query)
         jobname = get_hash(full_sequence)
@@ -105,8 +99,8 @@ for model_name in model_names:
             sequences=sequences,
             raw_inputs=raw_inputs_from_sequence,
             use_templates=args.use_templates,
-            custom_a3m_lines=custom_a3m,
-            custom_templates_path=args.custom_templates_path)
+            custom_a3m_lines=args.custom_msa_path,
+            custom_templates_path=args.custom_template_path)
         
         input_features = getInputFeatures(
             sequences=sequences,
