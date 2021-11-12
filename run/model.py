@@ -13,6 +13,12 @@ import sys
 import numpy as np
 from typing import Tuple, Sequence, Optional, Dict
 
+# (filename, sequence)
+MonomerQuery = Tuple[str, str]
+
+# (filename, oligomer_state, [sequences])
+MultimerQuery = Tuple[str, str, Sequence[str]]
+
 
 def getRandomSeeds(
         random_seed: Optional[int],
@@ -31,15 +37,24 @@ def getRandomSeeds(
         
 
 def getModelNames(
-        mode: str, use_ptm: bool = True, num_models: int = 5) -> Tuple[str]:
+        first_n_seqs: int, last_n_seqs: int,
+        use_ptm: bool = True, num_models: int = 5) -> Tuple[str]:
 
-    if mode == 'monomer':
+    include_monomer = False
+    include_multimer = False
+    if first_n_seqs == 1:
+        include_monomer = True
+    if last_n_seqs > 1:
+        include_multimer = True
+
+    model_names = ()
+    if include_monomer:
         key = 'monomer_ptm' if use_ptm else 'monomer'
-    elif mode == 'multimer':
-        key = 'multimer'
-
-    model_names = config.MODEL_PRESETS[key]
-    model_names = model_names[:num_models]
+        monomer_models = config.MODEL_PRESETS[key]
+        model_names += monomer_models[:num_models]
+    if include_multimer:
+        multimer_models = config.MODEL_PRESETS['multimer']
+        model_names += multimer_models[:num_models]
 
     return model_names
 

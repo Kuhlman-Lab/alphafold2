@@ -12,8 +12,8 @@ import os
 os.environ['TF_FORCE_UNIFIED_MEMORY'] = '1'
 os.environ['XLA_PYTHON_CLIENT_MEM_FRACTION'] = '2.0'
 
-from setup import getAF2Parser, QueryManager
-from features import getMonomerRawInputs, getMultimerRawInputs
+from setup import getAF2Parser, QueryManager, getOutputDir
+from features import getRawInputs
 from features import getChainFeatures, getInputFeatures
 from model import getRandomSeeds, getModelNames, getModelRunner
 from model import predictStructure
@@ -27,6 +27,9 @@ from alphafold.relax import relax
 parser = getAF2Parser()
 args = parser.parse_args()
 
+# Get the output directory.
+output_dir = getOutputDir(out_dir=args.output_dir)
+
 # Parse queries.
 qm = QueryManager(
     input_dir=args.input_dir,
@@ -35,23 +38,15 @@ qm = QueryManager(
     max_multimer_length=args.max_multimer_length)
 qm.parse_files()
 
-monomer_queries = qm.monomer_queries
-multimer_queries = qm.multimer_queries
+queries = qm.queries
 del qm
 
 # Get raw model inputs.
-raw_inputs_from_sequence, a3m_lines = getMonomerRawInputs(
-    monomer_queries=monomer_queries,
+raw_inputs_from_sequence = getRawInputs(
+    queries=queries,
     msa_mode=args.msa_mode,
     use_templates=args.use_templates,
-    output_dir=args.output_dir)
-
-raw_inputs_from_sequence = getMultimerRawInputs(
-    multimer_queries=multimer_queries,
-    msa_mode=args.msa_mode,
-    use_templates=args.use_templates,
-    output_dir=args.output_dir,
-    raw_inputs=raw_inputs_from_sequence)
+    output_dir=output_dir)
 
 # Get random seeds.
 seeds = getRandomSeeds(
@@ -59,15 +54,10 @@ seeds = getRandomSeeds(
     num_seeds=args.num_seeds)
 
 # Get model names.
-monomer_model_names = ()
-if len(monomer_queries) > 0:
-    monomer_model_names = getModelNames(
-        mode='monomer', use_ptm=args.use_ptm, num_models=args.num_models)
-
-multimer_model_names = ()
-if len(multimer_queries) > 0:
-    multimer_model_names = getModelNames(
-        mode='multimer', num_models=args.num_models)
+model_names = getModelNames(
+    first_n_seqs=len(queries[0][1]),
+    last_n_seqs=len(queries[-1][1]),
+    use_ptm=args.use_ptm, num_models=args.num_models)
 
 if args.use_amber:
     amber_relaxer = relax.AmberRelaxation(
@@ -75,7 +65,7 @@ if args.use_amber:
         exclude_residues=[], max_outer_iterations=3)
     
 # Predict structures.
-for model_name in monomer_model_names + multimer_model_names:
+for model_name in model_names:
 
     model_runner = getModelRunner(
         model_name=model_name,
@@ -85,49 +75,49 @@ for model_name in monomer_model_names + multimer_model_names:
         recycle_tol=args.recycle_tol,
         params_dir=args.params_dir)
 
-    for idx, query in enumerate(monomer_queries + multimer_queries):
+    file_id = None
+    for query in queries:
         # Skip any multimer queries if current model_runner is a monomer model.
-        if len(query) == 3 and 'multimer' not in model_name:
+        if len(query[1]) > 1 and 'multimer' not in model_name:
             continue
         # Skip any monomer queries if current model_runner is a multimer model.
-        elif len(query) == 2 and 'multimer' in model_name:
+        elif len(query[1]) == 1 and 'multimer' in model_name:
             continue
 
-        filename = query[0]
-        if filename[-4:] == '.a3m':
-            custom_a3m = a3m_lines[filename]
+        if file_id == None:
+            file_id = query[0]
+            idx = 0
+        elif file_id == query[0]:
+            idx += 1
         else:
-            custom_a3m = None
-            
-        full_sequence = getFullSequence(query)
-        jobname = get_hash(full_sequence)
-                
-        sequences = query[-1]
+            file_id = query[0]
+            idx = 0
 
-        if isinstance(sequences, str):
-            sequences = [sequences]
+        prefix = '.'.join(file_id.split('.')[:-1]) + f'_{idx}_' + model_name
+        sequences = query[1]
 
         features_for_chain = getChainFeatures(
             sequences=sequences,
             raw_inputs=raw_inputs_from_sequence,
             use_templates=args.use_templates,
-            custom_a3m_lines=custom_a3m,
-            custom_templates_path=args.custom_templates_path)
+            custom_msa_path=args.custom_msa_path,
+            custom_template_path=args.custom_template_path)
         
         input_features = getInputFeatures(
             sequences=sequences,
             chain_features=features_for_chain,
             is_prokaryote=args.is_prokaryote)
         
-        del filename, custom_a3m, sequences, features_for_chain
-        del full_sequence
+        del sequences, features_for_chain
 
-        for seed in seeds:
+        for seed_idx, seed in enumerate(seeds):
             if 'multimer' in model_name:
                 model_type = 'multimer'
             else:
                 model_type = 'monomer'
 
+            jobname = prefix + f'_seed_{seed_idx}'
+                
             result = predictStructure(
                 model_runner=model_runner,
                 feature_dict=input_features,
@@ -138,7 +128,7 @@ for model_name in monomer_model_names + multimer_model_names:
                 unrelaxed_pdb = protein.to_pdb(result['unrelaxed_protein'])
 
                 unrelaxed_pred_path = os.path.join(
-                    args.output_dir, f'unrelaxed_prediction_{idx}.pdb')
+                    output_dir, f'{jobname}_unrelaxed.pdb')
                 with open(unrelaxed_pred_path, 'w') as f:
                     f.write(unrelaxed_pdb)
 
@@ -150,7 +140,7 @@ for model_name in monomer_model_names + multimer_model_names:
 
                 if not args.dont_write_pdbs:
                     relaxed_pred_path = os.path.join(
-                        args.output_dir, f'relaxed_prediction_{idx}.pdb')
+                        output_dir, f'{jobname}_relaxed.pdb')
                     with open(relaxed_pred_path, 'w') as f:
                         f.write(relaxed_pdb)
 
@@ -159,10 +149,10 @@ for model_name in monomer_model_names + multimer_model_names:
                 del relaxed_pdb
 
             results_path = os.path.join(
-                args.output_dir, f'results_{idx}')
+                output_dir, f'{jobname}_results')
             if args.compress_output:
                 compressed_pickle(results_path, result)
             else:
                 full_pickle(results_path, result)
                     
-            del result, results_path
+            del model_type, jobname, result, results_path

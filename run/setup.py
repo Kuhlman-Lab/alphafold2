@@ -62,17 +62,15 @@ def getAF2Parser() -> FileArgumentParser:
 
     # Sequence Control Arguments
     parser.add_argument('--min_length',
-                        default=16,
+                        default=1,
                         type=int,
-                        help='Minimum single sequence length for an AF2 query. '
-                        'Default is 16 residues. It is highly recommended to '
-                        'keep the default value, unless you know what you\'re '
-                        'doing.')
+                        help='Minimum single chain length for an AF2 query. '
+                        'Default is 1 residue.')
 
     parser.add_argument('--max_length',
                         default=2500,
                         type=int,
-                        help='Maximum single sequence length for an AF2 query. '
+                        help='Maximum single chain length for an AF2 query. '
                         'Default is 2500 residues. If you\'ve got the '
                         'resources and need longer proteins, change this '
                         'argument.')
@@ -107,6 +105,13 @@ def getAF2Parser() -> FileArgumentParser:
                         'unknown, do not include this flag. CURRENTLY DOES NOT '
                         'DO ANYTHING!.')
 
+    parser.add_argument('--custom_msa_path',
+                        type=str,
+                        help='Path to directory containing custom .a3m files '
+                        'to be used as custom MSAs for AF2. Note that '
+                        'specifying this will cause the custom MSA to be used '
+                        'for every appropriate query.')
+
     # Relaxation Arguments
     parser.add_argument('--use_amber',
                         action='store_true',
@@ -121,9 +126,9 @@ def getAF2Parser() -> FileArgumentParser:
                          help='Whether or not to use templates as determined '
                          'by MMseqs2. Default is False.')
 
-    parser.add_argument('--custom_templates_path',
+    parser.add_argument('--custom_template_path',
                          type=str,
-                         help='Path to directory containing custom pdb files '
+                         help='Path to directory containing custom .pdb files '
                          'to be used as templates for AF2. Note that '
                          'specifying this will cause the custom templates to '
                          'be used for every query sequence!')
@@ -183,7 +188,20 @@ def getAF2Parser() -> FileArgumentParser:
                          'recycles).')
                         
     return parser
-    
+
+
+def getOutputDir(out_dir: str) -> str:
+    if out_dir == '':
+        from datetime import datetime
+
+        dt = str(datetime.now()).split('.')[0]
+        dt = dt.replace(' ', '_')
+
+        out_dir = 'prediction_' + dt
+
+    os.makedirs(out_dir, exist_ok=True)
+
+    return out_dir
 
 class QueryManager(object):
     """Manager that will parse, validate, and store queries. """
@@ -199,16 +217,15 @@ class QueryManager(object):
 
         self.files = {}
         self.others = []
-        self.monomer_queries = []
-        self.multimer_queries = []
+        self.queries = []
 
-        # Detect .fasta, .a3m, and .csv files from the input directory.
+        # Detect .fasta and .csv files from the input directory.
         onlyfiles = [f for f in os.listdir(input_dir) if os.path.isfile(
                      os.path.join(input_dir, f))]
 
         for filename in onlyfiles:
             extension = filename.split('.')[-1]
-            if extension in ['fasta', 'a3m', 'csv']:
+            if extension in ['fasta', 'csv']:
                 if extension not in self.files:
                     self.files[extension] = []
                 self.files[extension].append(os.path.join(input_dir, filename))
@@ -217,7 +234,7 @@ class QueryManager(object):
 
         if len(self.files) == 0:
             raise ValueError(
-                f'No input .fasta, .a3m, or .csv files detected in '
+                f'No input .fasta or .csv files detected in '
                 '{input_dir}')
 
         
@@ -228,31 +245,20 @@ class QueryManager(object):
             if extension == 'fasta':
                 queries = query_utils.parse_fasta_files(
                     files=self.files['fasta'])
-
-            elif extension == 'a3m':
-                queries = query_utils.parse_a3m_files(
-                    files=self.files['a3m'])
-
             else:
                 queries = query_utils.parse_csv_files(
                     files=self.files['csv'])
+
             # Validate queries by checking sequence composition and lengths
-            queries = query_utils.validate_queries(
+            queries = query_utils.clean_and_validate_queries(
                 input_queries=queries,
                 min_length=self.min_length,
                 max_length=self.max_length,
                 max_multimer_length=self.max_multimer_length)
 
-            # Add queries to appropriate lists. Important for handling multiple
-            # models.
-            for query in queries:
-                if len(query) == 2:
-                    self.monomer_queries.append(query)
-                else:
-                    self.multimer_queries.append(query)
-
+            # Add queries to overall query list.
+            self.queries += queries
+                            
         # Remove duplicate queries to reduce redundancy
-        self.monomer_queries = query_utils.detect_duplicate_queries(
-            query_list=self.monomer_queries)
-        self.multimer_queries = query_utils.detect_duplicate_queries(
-            query_list=self.multimer_queries)        
+        self.queries = query_utils.detect_duplicate_queries(
+            query_list=self.queries)
