@@ -12,6 +12,8 @@ import os
 os.environ['TF_FORCE_UNIFIED_MEMORY'] = '1'
 os.environ['XLA_PYTHON_CLIENT_MEM_FRACTION'] = '2.0'
 
+import time
+
 from setup import getAF2Parser, QueryManager, getOutputDir
 from features import getRawInputs
 from features import getChainFeatures, getInputFeatures
@@ -22,6 +24,10 @@ from utils.utils import compressed_pickle, get_hash, full_pickle
 
 from alphafold.common import protein
 from alphafold.relax import relax
+
+# Set up timing dictionary.
+timings = {}
+t_all = time.time()
 
 # Parse arguments.
 parser = getAF2Parser()
@@ -66,7 +72,6 @@ if args.use_amber:
     
 # Predict structures.
 for model_name in model_names:
-
     model_runner = getModelRunner(
         model_name=model_name,
         num_ensemble=args.num_ensemble,
@@ -76,7 +81,7 @@ for model_name in model_names:
         params_dir=args.params_dir)
 
     file_id = None
-    for query in queries:
+    for query_idx, query in enumerate(queries):
         # Skip any multimer queries if current model_runner is a monomer model.
         if len(query[1]) > 1 and 'multimer' not in model_name:
             continue
@@ -96,6 +101,7 @@ for model_name in model_names:
         prefix = '.'.join(file_id.split('.')[:-1]) + f'_{idx}_' + model_name
         sequences = query[1]
 
+        t_0 = time.time()
         features_for_chain = getChainFeatures(
             sequences=sequences,
             raw_inputs=raw_inputs_from_sequence,
@@ -107,6 +113,7 @@ for model_name in model_names:
             sequences=sequences,
             chain_features=features_for_chain,
             is_prokaryote=args.is_prokaryote)
+        timings[f'features_{model_name}_query_{query_idx}'] = time.time() - t_0
         
         del sequences, features_for_chain
 
@@ -117,12 +124,14 @@ for model_name in model_names:
                 model_type = 'monomer'
 
             jobname = prefix + f'_seed_{seed_idx}'
-                
+
+            t_0 = time.time()
             result = predictStructure(
                 model_runner=model_runner,
                 feature_dict=input_features,
                 model_type=model_type,
                 random_seed=seed)
+            timings[f'predict_{model_name}_seed_{seed_idx}_query_{query_idx}'] = time.time() - t_0
 
             if not args.dont_write_pdbs:
                 unrelaxed_pdb = protein.to_pdb(result['unrelaxed_protein'])
@@ -135,9 +144,10 @@ for model_name in model_names:
                 del unrelaxed_pdb, unrelaxed_pred_path
             
             if args.use_amber:
+                t_1 = time.time()
                 relaxed_pdb, _, _ = amber_relaxer.process(
                     prot=result['unrelaxed_protein'])
-
+                
                 if not args.dont_write_pdbs:
                     relaxed_pred_path = os.path.join(
                         output_dir, f'{jobname}_relaxed.pdb')
@@ -147,12 +157,22 @@ for model_name in model_names:
                     del relaxed_pred_path
 
                 del relaxed_pdb
-
+                timings[f'relax_{model_name}_seed_{seed_idx}_query_{query_idx}'] = time.time() - t_1
+                del t_1
+                
             results_path = os.path.join(
                 output_dir, f'{jobname}_results')
             if args.compress_output:
                 compressed_pickle(results_path, result)
             else:
                 full_pickle(results_path, result)
-                    
+    
             del model_type, jobname, result, results_path
+
+timings['overall'] = time.time() - t_all
+if args.show_timing:
+    print(timings)
+
+if args.save_timing:
+    timing_path = os.path.join(output_dir, 'timings')
+    full_pickle(timing_path, timings)
