@@ -20,7 +20,7 @@ from features import getChainFeatures, getInputFeatures
 from model import getRandomSeeds, getModelNames, getModelRunner
 from model import predictStructure
 from utils.query_utils import getFullSequence
-from utils.utils import compressed_pickle, get_hash, full_pickle
+from utils.utils import compressed_pickle, get_hash, full_pickle, print_timing
 
 from alphafold.common import protein
 from alphafold.relax import relax
@@ -171,7 +171,7 @@ for model_name in model_names:
 
 timings['overall'] = time.time() - t_all
 if args.show_timing:
-    print(timings)
+    print_timing(timings)
 
 if args.save_timing:
     timing_path = os.path.join(output_dir, 'timings')
