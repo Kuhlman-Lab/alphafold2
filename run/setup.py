@@ -231,12 +231,15 @@ class QueryManager(object):
                 self.files[extension].append(os.path.join(input_dir, filename))
             else:
                 self.others.append(os.path.join(input_dir, filename))
-
+                
         if len(self.files) == 0:
             raise ValueError(
                 f'No input .fasta or .csv files detected in '
                 '{input_dir}')
 
+        filenames = [pathlib.Path(p).stem for p in self.files.values()]
+        if len(filenames) != len(set(filenames)):
+            raise ValueError('All input files must have a unique basename.')
         
     def parse_files(self) -> None:
 
