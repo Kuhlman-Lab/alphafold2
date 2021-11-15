@@ -238,7 +238,7 @@ class QueryManager(object):
                 f'No input .fasta or .csv files detected in '
                 '{input_dir}')
 
-        filenames = [pathlib.Path(p).stem for p in self.files.values()]
+        filenames = [pathlib.Path(p).stem for l in self.files.values() for p in l]
         if len(filenames) != len(set(filenames)):
             raise ValueError('All input files must have a unique basename.')
         
