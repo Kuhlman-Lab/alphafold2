@@ -5,6 +5,7 @@ input query parsing.
 
 import os
 import argparse
+import pathlib
 from typing import Sequence
 from utils import query_utils
 
