@@ -370,7 +370,12 @@ def getChainFeatures(
             a3m = new_raw_inputs[0]
             template = new_raw_inputs[1]
 
-            feature_dict.update(make_template(sequence, a3m, template))
+            if template == None:
+                feature_dict.update(
+                    notebook_utils.empty_placeholder_template_features(
+                        num_templates=0, num_res=len(sequence)))
+            else:
+                feature_dict.update(make_template(sequence, a3m, template))
         else:
             feature_dict.update(
                 notebook_utils.empty_placeholder_template_features(
