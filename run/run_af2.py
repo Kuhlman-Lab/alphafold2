@@ -1,9 +1,6 @@
 """ Full AlphaFold protein structure prediction script."""
 
 import jax
-print(f'Running with {jax.local_devices()[0].device_kind} '
-      '{jax.local_devices()[0].platform.upper()}')
-
 import sys
 sys.path.append('~/anaconda3/envs/af2/lib/python3.7/site-packages')
 sys.path.append('./content/alphafold')
@@ -13,6 +10,7 @@ os.environ['TF_FORCE_UNIFIED_MEMORY'] = '1'
 os.environ['XLA_PYTHON_CLIENT_MEM_FRACTION'] = '2.0'
 
 import time
+import logging
 
 from setup import getAF2Parser, QueryManager, getOutputDir
 from features import getRawInputs
@@ -35,6 +33,12 @@ args = parser.parse_args()
 
 # Get the output directory.
 output_dir = getOutputDir(out_dir=args.output_dir)
+
+logging.basicConfig(filename=os.path.join(output_dir, 'prediction.log'),
+                    level=logging.INFO)
+logger = logging.getLogger('AF2_main')
+logger.info(f'Running with {jax.local_devices()[0].device_kind} '
+            f'{jax.local_devices()[0].platform.upper()}')
 
 # Parse queries.
 qm = QueryManager(
