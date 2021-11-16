@@ -11,6 +11,7 @@ import tarfile
 import copy
 import numpy as np
 import pathlib
+import logging
 from alphafold.data import parsers
 from alphafold.data import pipeline
 from alphafold.data import pipeline_multimer
@@ -22,6 +23,8 @@ from alphafold.notebooks import notebook_utils
 from typing import Sequence, Optional, Dict, Tuple, MutableMapping, Union
 
 from utils import template_utils, utils
+
+logger = logging.getLogger('features')
 
 # (filename, [sequence])
 CleanQuery = Tuple[str, str]
@@ -310,6 +313,9 @@ def getUniprotMSA(
         ) -> parsers.Msa:
     """ This function essentially creates an MSA with no information. This 
     needs to be updated once Uniprot can be searched with MMseqs2. """
+
+    logger.warning('AF2 is using an empty UniProt MSA. Results may not be '
+                   'as accurate. This will be changed in the future.')
     
     # Get uniprot MSA
     a3m = f'>{utils.get_hash(sequence)}\n{sequence}\n'
