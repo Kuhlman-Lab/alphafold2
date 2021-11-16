@@ -2,9 +2,12 @@
 
 import os
 import csv
+import logging
 from typing import Sequence, Tuple, Union
 from alphafold.common import residue_constants
 from alphafold.data import pipeline
+
+logger = logging.getLogger('query_utils')
 
 # (filename, sequence)
 MonomerQuery = Tuple[str, str]
@@ -128,8 +131,8 @@ def _clean_and_validate_single_query(
 
     # Clean oligomer and validate shape
     if oligomer == '':
-        print(f'WARNING: Inferring oligomeric state from sequences provided in '
-              f'{clean_filename}.')
+        logger.warning(f'Inferring oligomeric state from sequences provided in '
+                       f'{clean_filename}.')
         clean_oligomer = ':'.join(['1'] * len(clean_sequences))
     else:
         clean_oligomer = oligomer.translate(
@@ -166,10 +169,11 @@ def _clean_and_validate_single_query(
             f'for this query, overwrite the default max_multimer_length by '
             f'providing the argument: --max_multimer_length NEW_MAX.')
     elif total_multimer_length > 1536:
-        print(f'WARNING: The accuracy of the multimer system has not been '
-              f'fully validated above 1536 residues. Query from '
-              f'{clean_filename} is a total length of {total_multimer_length}.')
-        
+        logger.warning(f'The accuracy of the multimer system has not been '
+                       f'fully validated above 1536 residues. Query from '
+                       f'{clean_filename} is a total length of '
+                       f'{total_multimer_length}.')
+    
     # If there is only one sequence, then the query is a monomer query.
     # If there is more than one sequence, then the query is a multimer query.
     return (clean_filename, clean_sequences)
