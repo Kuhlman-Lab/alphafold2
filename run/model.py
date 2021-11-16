@@ -82,7 +82,7 @@ def getModelRunner(
 def predictStructure(
         model_runner: model.RunModel,
         feature_dict: pipeline.FeatureDict,
-        model_type: str,
+        run_multimer: bool,
         random_seed: int = random.randrange(sys.maxsize)
         ) -> Dict[str, np.ndarray]:
 
@@ -108,6 +108,6 @@ def predictStructure(
         features=processed_feature_dict,
         result=prediction,
         b_factors=b_factors,
-        remove_leading_feature_dimension= model_type == 'monomer')
+        remove_leading_feature_dimension=not run_multimer)
     
     return result

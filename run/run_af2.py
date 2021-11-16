@@ -23,43 +23,53 @@ from model import (
 from utils.query_utils import getFullSequence
 from utils.utils import compressed_pickle, get_hash, full_pickle
 
-# Parse arguments.
-parser = getAF2Parser()
-args = parser.parse_args()
-del parser
+# Global constants.
+MAX_TEMPLATE_HITS = 20
+RELAX_MAX_ITERATIONS = 0
+RELAX_ENERGY_TOLERANCE = 2.39
+RELAX_STIFFNESS = 10.0
+RELAX_EXCLUDE_RESIDUES = []
+RELAX_MAX_OUTER_ITERATIONS = 3
 
-# Update output directory.
-output_dir = getOutputDir(out_dir=args.output_dir)
 
-# Set up logger
-logging.basicConfig(filename=os.path.join(output_dir, 'prediction.log'),
-                    level=logging.INFO)
-logger = logging.getLogger('run_af2')
+def main() -> None:
 
-# Log what device program is running on.
-logger.info(f'Running with {jax.local_devices()[0].device_kind} '
-            f'{jax.local_devices()[0].platform.upper()}')
+    # Parse arguments.
+    parser = getAF2Parser()
+    args = parser.parse_args()
+    del parser
 
-# Update environmental variables.
-os.environ['TF_FORCE_UNIFIED_MEMORY'] = '1'
-os.environ['XLA_PYTHON_CLIENT_MEM_FRACTION'] = '2.0'
-os.environ['TF_XLA_FLAGS'] = '--tf_xla_cpu_global_jit'
+    # Update output directory.
+    output_dir = getOutputDir(out_dir=args.output_dir)
 
-# Set up timing dictionary.
-timings = {}
-t_all = time.time()
+    # Set up logger
+    logging.basicConfig(filename=os.path.join(output_dir, 'prediction.log'),
+                        level=logging.INFO)
+    logger = logging.getLogger('run_af2')
 
-# Parse queries.
-qm = QueryManager(
-    input_dir=args.input_dir,
-    min_length=args.min_length,
-    max_length=args.max_length,
-    max_multimer_length=args.max_multimer_length)
-qm.parse_files()
+    logger.info(f'Running with {jax.local_devices()[0].device_kind} '
+                f'{jax.local_devices()[0].platform.upper()}')
 
-queries = qm.queries
-logger.info(f'Queries have been parsed. {len(queries)} queries found.')
-del qm
+    # Update environmental variables.
+    os.environ['TF_FORCE_UNIFIED_MEMORY'] = '1'
+    os.environ['XLA_PYTHON_CLIENT_MEM_FRACTION'] = '2.0'
+    os.environ['TF_XLA_FLAGS'] = '--tf_xla_cpu_global_jit'
+
+    # Set up timing dictionary.
+    timings = {}
+    t_all = time.time()
+
+    # Parse queries.
+    qm = QueryManager(
+        input_dir=args.input_dir,
+        min_length=args.min_length,
+        max_length=args.max_length,
+        max_multimer_length=args.max_multimer_length)
+    qm.parse_files()
+
+    queries = qm.queries
+    logger.info(f'Queries have been parsed. {len(queries)} queries found.')
+    del qm
 
 # Get raw model inputs.
 t_0 = time.time()
@@ -98,6 +108,11 @@ for model_name in model_names:
         recycle_tol=args.recycle_tol,
         params_dir=args.params_dir)
     logger.info(f'Obtained model runner for {model_name}.')
+
+    if 'multimer' in model_name:
+        run_multimer = True
+    else:
+        run_multimer = False
 
     file_id = None
     for query_idx, query in enumerate(queries):
@@ -141,18 +156,13 @@ for model_name in model_names:
         del sequences, features_for_chain
 
         for seed_idx, seed in enumerate(seeds):
-            if 'multimer' in model_name:
-                model_type = 'multimer'
-            else:
-                model_type = 'monomer'
-
             jobname = prefix + f'_{seed_idx}'
 
             t_0 = time.time()
             result = predictStructure(
                 model_runner=model_runner,
                 feature_dict=input_features,
-                model_type=model_type,
+                run_multimer=run_multimer,
                 random_seed=seed)
             timings[f'predict_{model_name}_{seed_idx}_{query_idx}'] = time.time() - t_0
             logger.info(f'Structure prediction for {model_name}, seed '
@@ -209,3 +219,7 @@ if args.save_timing:
         compressed_pickle(timing_path, timings)
     else:
         full_pickle(timing_path, timings)
+
+
+if __name__ == '__main__':
+    main()
