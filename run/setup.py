@@ -61,11 +61,6 @@ def getAF2Parser() -> FileArgumentParser:
                         help='Whether or not to write output pdb files. '
                         'Default is False.')
 
-    parser.add_argument('--show_timing',
-                        action='store_true',
-                        help='Whether or not to display run times at the end. '
-                        'Default is False.')
-
     parser.add_argument('--save_timing',
                         action='store_true',
                         help='Whether or not to save run times in pickle file '
