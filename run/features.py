@@ -444,7 +444,6 @@ def make_template(
     hhsearch_hits = parsers.parse_hhr(hhsearch_result)
     templates_result = template_featurizer.get_templates(
         query_sequence=query_sequence,
-        query_pdb_code=None,
         query_release_date=None,
         hits=hhsearch_hits)
 
