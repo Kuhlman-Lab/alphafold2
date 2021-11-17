@@ -33,7 +33,6 @@ RELAX_MAX_OUTER_ITERATIONS = 3
 
 
 def main() -> None:
-
     # Parse arguments.
     parser = getAF2Parser()
     args = parser.parse_args()
@@ -71,154 +70,167 @@ def main() -> None:
     logger.info(f'Queries have been parsed. {len(queries)} queries found.')
     del qm
 
-# Get raw model inputs.
-t_0 = time.time()
-raw_inputs_from_sequence = getRawInputs(
-    queries=queries,
-    msa_mode=args.msa_mode,
-    use_templates=args.use_templates,
-    output_dir=output_dir)
-timings['raw_inputs'] = time.time() - t_0
-logger.info(f'Raw inputs have been generated. Took {timings["raw_inputs"]:.2f} '
-            f'seconds.')
+    # Get raw model inputs.
+    t_0 = time.time()
+    raw_inputs_from_sequence = getRawInputs(
+        queries=queries,
+        msa_mode=args.msa_mode,
+        use_templates=args.use_templates,
+        output_dir=output_dir)
+    timings['raw_inputs'] = time.time() - t_0
+    logger.info(f'Raw inputs have been generated. Took '
+                f'{timings["raw_inputs"]:.2f} seconds.')
 
-# Get random seeds.
-seeds = getRandomSeeds(
-    random_seed=args.random_seed,
-    num_seeds=args.num_seeds)
+    # Get random seeds.
+    seeds = getRandomSeeds(
+        random_seed=args.random_seed,
+        num_seeds=args.num_seeds)
 
-# Get model names.
-model_names = getModelNames(
-    first_n_seqs=len(queries[0][1]),
-    last_n_seqs=len(queries[-1][1]),
-    use_ptm=args.use_ptm, num_models=args.num_models)
+    # Get model names.
+    model_names = getModelNames(
+        first_n_seqs=len(queries[0][1]),
+        last_n_seqs=len(queries[-1][1]),
+        use_ptm=args.use_ptm, num_models=args.num_models)
 
-if args.use_amber:
-    amber_relaxer = relax.AmberRelaxation(
-        max_iterations=0, tolerance=2.39, stiffness=10.0,
-        exclude_residues=[], max_outer_iterations=3)
+    if args.use_amber:
+        amber_relaxer = relax.AmberRelaxation(
+            max_iterations=RELAX_MAX_ITERATIONS,
+            tolerance=RELAX_ENERGY_TOLERANCE,
+            stiffness=RELAX_STIFFNESS,
+            exclude_residues=RELAX_EXCLUDE_RESIDUES,
+            max_outer_iterations=RELAX_MAX_OUTER_ITERATIONS)
     
-# Predict structures.
-for model_name in model_names:
-    model_runner = getModelRunner(
-        model_name=model_name,
-        num_ensemble=args.num_ensemble,
-        is_training=args.is_training,
-        num_recycle=args.max_recycle,
-        recycle_tol=args.recycle_tol,
-        params_dir=args.params_dir)
-    logger.info(f'Obtained model runner for {model_name}.')
+    # Predict structures.
+    for model_name in model_names:
+        model_runner = getModelRunner(
+            model_name=model_name,
+            num_ensemble=args.num_ensemble,
+            is_training=args.is_training,
+            num_recycle=args.max_recycle,
+            recycle_tol=args.recycle_tol,
+            params_dir=args.params_dir)
+        logger.info(f'Obtained model runner for {model_name}.')
 
-    if 'multimer' in model_name:
-        run_multimer = True
-    else:
-        run_multimer = False
-
-    file_id = None
-    for query_idx, query in enumerate(queries):
-        # Skip any multimer queries if current model_runner is a monomer model.
-        if len(query[1]) > 1 and 'multimer' not in model_name:
-            continue
-        # Skip any monomer queries if current model_runner is a multimer model.
-        elif len(query[1]) == 1 and 'multimer' in model_name:
-            continue
-
-        if file_id == None:
-            file_id = query[0]
-            idx = 0
-        elif file_id == query[0]:
-            idx += 1
+        if 'multimer' in model_name:
+            run_multimer = True
         else:
-            file_id = query[0]
-            idx = 0
+            run_multimer = False
 
-        prefix = '.'.join(file_id.split('.')[:-1]) + f'_{idx}_' + model_name
-        sequences = query[1]
+        file_id = None
+        for query_idx, query in enumerate(queries):
+            # Skip any multimer queries if current model_runner is a monomer
+            # model.
+            if len(query[1]) > 1 and 'multimer' not in model_name:
+                continue
+            # Skip any monomer queries if current model_runner is a multimer
+            # model.
+            elif len(query[1]) == 1 and 'multimer' in model_name:
+                continue
 
-        t_0 = time.time()
-        features_for_chain = getChainFeatures(
-            sequences=sequences,
-            raw_inputs=raw_inputs_from_sequence,
-            use_templates=args.use_templates,
-            custom_msa_path=args.custom_msa_path,
-            custom_template_path=args.custom_template_path)
-        
-        input_features = getInputFeatures(
-            sequences=sequences,
-            chain_features=features_for_chain,
-            is_prokaryote=args.is_prokaryote)
-        timings[f'features_{model_name}_{query_idx}'] = time.time() - t_0
-        logger.info(f'Features for {model_name}, query {query_idx} have been '
-                    f'generated. Took '
-                    f'{timings[f"features_{model_name}_{query_idx}"]} '
-                    f'seconds.')
-        
-        del sequences, features_for_chain
+            if file_id == None:
+                file_id = query[0]
+                idx = 0
+            elif file_id == query[0]:
+                idx += 1
+            else:
+                file_id = query[0]
+                idx = 0
 
-        for seed_idx, seed in enumerate(seeds):
-            jobname = prefix + f'_{seed_idx}'
+            prefix = '.'.join(file_id.split('.')[:-1]) + f'_{idx}_' + model_name
+            sequences = query[1]
 
             t_0 = time.time()
-            result = predictStructure(
-                model_runner=model_runner,
-                feature_dict=input_features,
-                run_multimer=run_multimer,
-                random_seed=seed)
-            timings[f'predict_{model_name}_{seed_idx}_{query_idx}'] = time.time() - t_0
-            logger.info(f'Structure prediction for {model_name}, seed '
-                        f'{seed_idx}, query {query_idx} is completed. Took '
-                        f'{timings[f"predict_{model_name}_{seed_idx}_{query_idx}"]} '
+            features_for_chain = getChainFeatures(
+                sequences=sequences,
+                raw_inputs=raw_inputs_from_sequence,
+                use_templates=args.use_templates,
+                custom_msa_path=args.custom_msa_path,
+                custom_template_path=args.custom_template_path)
+        
+            input_features = getInputFeatures(
+                sequences=sequences,
+                chain_features=features_for_chain,
+                is_prokaryote=args.is_prokaryote)
+            timings[f'features_{model_name}_{query_idx}'] = time.time() - t_0
+            logger.info(f'Features for {model_name}, query {query_idx} have '
+                        f'been generated. Took '
+                        f'{timings[f"features_{model_name}_{query_idx}"]} '
                         f'seconds.')
-            
-            if not args.dont_write_pdbs:
-                unrelaxed_pdb = protein.to_pdb(result['unrelaxed_protein'])
+        
+            del sequences, features_for_chain
 
-                unrelaxed_pred_path = os.path.join(
-                    output_dir, f'{jobname}_unrelaxed.pdb')
-                with open(unrelaxed_pred_path, 'w') as f:
-                    f.write(unrelaxed_pdb)
-                logger.info('Unrelaxed protein pdb has been written.')
-                    
-                del unrelaxed_pdb, unrelaxed_pred_path
+            for seed_idx, seed in enumerate(seeds):
+                jobname = prefix + f'_{seed_idx}'
+
+                t_0 = time.time()
+                result = predictStructure(
+                    model_runner=model_runner,
+                    feature_dict=input_features,
+                    run_multimer=run_multimer,
+                    random_seed=seed)
+                timings[f'predict_{model_name}_{seed_idx}_{query_idx}'] = (
+                    time.time() - t_0)
+                logger.info(f'Structure prediction for {model_name}, seed '
+                            f'{seed_idx}, query {query_idx} is completed. Took '
+                            f'{timings[f"predict_{model_name}_{seed_idx}_{query_idx}"]} '
+                            f'seconds.')
             
-            if args.use_amber:
-                t_1 = time.time()
-                relaxed_pdb, _, _ = amber_relaxer.process(
-                    prot=result['unrelaxed_protein'])
-                timings[f'relax_{model_name}_{seed_idx}_{query_idx}'] = time.time() - t_1
-                logger.info('Protein structure has been relaxed with AMBER.')
-                
                 if not args.dont_write_pdbs:
-                    relaxed_pred_path = os.path.join(
-                        output_dir, f'{jobname}_relaxed.pdb')
-                    with open(relaxed_pred_path, 'w') as f:
-                        f.write(relaxed_pdb)
-                    logger.info('Relaxed protein pdb has been written.')
-                        
-                    del relaxed_pred_path
+                    unrelaxed_pdb = protein.to_pdb(result['unrelaxed_protein'])
 
-                del t_1, relaxed_pdb
+                    unrelaxed_pred_path = os.path.join(
+                        output_dir, f'{jobname}_unrelaxed.pdb')
+                    with open(unrelaxed_pred_path, 'w') as f:
+                        f.write(unrelaxed_pdb)
+                        logger.info('Unrelaxed protein pdb has been written.')
+                    
+                    del unrelaxed_pdb, unrelaxed_pred_path
+            
+                if args.use_amber:
+                    t_1 = time.time()
+                    relaxed_pdb, _, _ = amber_relaxer.process(
+                        prot=result['unrelaxed_protein'])
+                    timings[f'relax_{model_name}_{seed_idx}_{query_idx}'] = (
+                        time.time() - t_1)
+                    logger.info('Structure has been relaxed with AMBER.')
                 
-            results_path = os.path.join(
-                output_dir, f'{jobname}_results')
-            if args.compress_output:
-                compressed_pickle(results_path, result)
-                logger.info('Results have been pickled and compressed.')
-            else:
-                full_pickle(results_path, result)
-                logger.info('Results have been pickled.')
+                    if not args.dont_write_pdbs:
+                        relaxed_pred_path = os.path.join(
+                            output_dir, f'{jobname}_relaxed.pdb')
+                        with open(relaxed_pred_path, 'w') as f:
+                            f.write(relaxed_pdb)
+                        logger.info('Relaxed protein pdb has been written.')
+                        
+                        del relaxed_pred_path
+
+                    del t_1, relaxed_pdb
+                
+                results_path = os.path.join(output_dir, f'{jobname}_results')
+                if args.compress_output:
+                    compressed_pickle(results_path, result)
+                    logger.info('Results have been pickled and compressed.')
+                else:
+                    full_pickle(results_path, result)
+                    logger.info('Results have been pickled.')
     
-            del model_type, jobname, result, results_path
+                del jobname, result, results_path
+            # end for seed in seeds
+            
+        # end for query in queries
+        del run_multimer
+        
+    # end for model_name in model_names
+        
+    timings['overall'] = time.time() - t_all
+    logger.info(f'Overall prediction process took {timings["overall"]} '
+                f'seconds.')
 
-timings['overall'] = time.time() - t_all
-logger.info(f'Overall prediction process took {timings["overall"]} seconds.')
-
-if args.save_timing:
-    timing_path = os.path.join(output_dir, 'timing')
-    if args.compress_output:
-        compressed_pickle(timing_path, timings)
-    else:
-        full_pickle(timing_path, timings)
+    if args.save_timing:
+        timing_path = os.path.join(output_dir, 'timing')
+        if args.compress_output:
+            compressed_pickle(timing_path, timings)
+        else:
+            full_pickle(timing_path, timings)
 
 
 if __name__ == '__main__':

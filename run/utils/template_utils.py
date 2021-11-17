@@ -88,12 +88,11 @@ class TemplateHitFeaturizer:
       self,
       query_sequence: str,
       query_release_date: Optional[datetime.datetime],
-      hits: Sequence[parsers.TemplateHit]) -> TemplateSearchResult:
+      hits: Sequence[parsers.TemplateHit]) -> templates.TemplateSearchResult:
     """Computes the templates for given query sequence (more details above)."""
-    logging.info('Searching for template for: %s', query_pdb_code)
 
     template_features = {}
-    for template_feature_name in TEMPLATE_FEATURES:
+    for template_feature_name in templates.TEMPLATE_FEATURES:
       template_features[template_feature_name] = []
 
     # Always use a max_template_date. Set to query_release_date minus 60 days
@@ -145,10 +144,12 @@ class TemplateHitFeaturizer:
     for name in template_features:
       if num_hits > 0:
         template_features[name] = np.stack(
-            template_features[name], axis=0).astype(TEMPLATE_FEATURES[name])
+            template_features[name], axis=0).astype(
+              templates.TEMPLATE_FEATURES[name])
       else:
         # Make sure the feature has correct dtype even if empty.
-        template_features[name] = np.array([], dtype=TEMPLATE_FEATURES[name])
+        template_features[name] = np.array(
+          [], dtype=templates.TEMPLATE_FEATURES[name])
 
     return templates.TemplateSearchResult(
         features=template_features, errors=errors, warnings=warnings)
