@@ -192,6 +192,13 @@ def getAF2Parser() -> FileArgumentParser:
                          help='Tolerance for deciding when to stop recycling '
                          'the structure through the network (Ca-RMS between '
                          'recycles).')
+
+    parser.add_argument('--device_id',
+                        default=-1,
+                        type=int,
+                        help='ID of device which JAX is allowed to see when '
+                        'running the AF2 models. Default is -1, indicating to '
+                        'use the default device as determined by JAX.')
                         
     return parser
 
