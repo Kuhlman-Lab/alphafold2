@@ -5,22 +5,13 @@ import os
 import sys
 import logging
 import time
-import jax
 
 # Update PATH.
 sys.path.append('~/anaconda3/envs/af2/lib/python3.7/site-packages')
 sys.path.append('./content/alphafold')
 
-# AlphaFold imports.
-from alphafold.common import protein
-from alphafold.relax import relax
-
 # Custom imports.
 from setup import getAF2Parser, QueryManager, getOutputDir
-from features import getRawInputs, getChainFeatures, getInputFeatures
-from model import (
-    getRandomSeeds, getModelNames, getModelRunner, predictStructure)
-from utils.query_utils import getFullSequence
 from utils.utils import compressed_pickle, get_hash, full_pickle
 
 # Global constants.
@@ -53,7 +44,18 @@ def main() -> None:
     os.environ['TF_FORCE_UNIFIED_MEMORY'] = '1'
     os.environ['XLA_PYTHON_CLIENT_MEM_FRACTION'] = '2.0'
     os.environ['TF_XLA_FLAGS'] = '--tf_xla_cpu_global_jit'
+    if args.device_id != -1:
+        os.environ['CUDA_VISIBLE_DEVICES'] = str(args.device_id)
 
+    # Get all AF2 imports.
+    import jax
+    from alphafold.common import protein
+    from alphafold.relax import relax
+    from features import getRawInputs, getChainFeatures, getInputFeatures
+    from model import (
+        getRandomSeeds, getModelNames, getModelRunner, predictStructure)
+    from utils.query_utils import getFullSequence
+    
     # Set up timing dictionary.
     timings = {}
     t_all = time.time()
