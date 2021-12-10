@@ -235,5 +235,3 @@ def getFullSequence(query: Union[MonomerQuery, MultimerQuery]) -> str:
             seq * int(oligo) for seq, oligo in zip(sequences, oligo_list)])
 
     return full_sequence
-
-    
