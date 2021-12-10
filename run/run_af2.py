@@ -50,6 +50,10 @@ def main() -> None:
     from model import (
         getRandomSeeds, getModelNames, getModelRunner, predictStructure)
     from utils.query_utils import getFullSequence
+
+    # Log devices
+    NUM_DEVICES = len(jax.local_devices())
+    logger.info(f'Running JAX with {NUM_DEVICES} devices.')
     
     # Set up timing dictionary.
     timings = {}
