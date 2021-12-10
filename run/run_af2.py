@@ -37,15 +37,10 @@ def main() -> None:
                         level=logging.INFO)
     logger = logging.getLogger('run_af2')
 
-    logger.info(f'Running with {jax.local_devices()[0].device_kind} '
-                f'{jax.local_devices()[0].platform.upper()}')
-
     # Update environmental variables.
     os.environ['TF_FORCE_UNIFIED_MEMORY'] = '1'
     os.environ['XLA_PYTHON_CLIENT_MEM_FRACTION'] = '2.0'
     os.environ['TF_XLA_FLAGS'] = '--tf_xla_cpu_global_jit'
-    if args.device_id != -1:
-        os.environ['CUDA_VISIBLE_DEVICES'] = str(args.device_id)
 
     # Get all AF2 imports.
     import jax
