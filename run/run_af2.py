@@ -109,11 +109,9 @@ def af2_init(sequences_len: Sequence[Sequence[int]], proc_id: int, arg_file: str
 
             del result
 
-    def wrapper(seqs):
-        fitness_list = af2(seqs, arg_file, proc_id, fitness_fxn)
-        return fitness_list
-        
-    return wrapper
+    af2_partial = partial(af2, arg_file=arg_file, proc_id=proc_id, fitness_fxn=fitnes_fxn)
+
+    return af2_partial
     
 
 def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
