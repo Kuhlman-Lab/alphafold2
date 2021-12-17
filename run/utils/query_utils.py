@@ -21,7 +21,7 @@ MonomerQuery = Tuple[str, str]
 MultimerQuery = Tuple[str, str, Sequence[str]]
 
 # (filename, [sequences])
-CleanQuery = Tuple[str, str, Sequence[str]]
+CleanQuery = Tuple[str, Sequence[str]]
 
 
 def parse_fasta_files(files: Sequence[str]) -> Sequence[MonomerQuery]:
