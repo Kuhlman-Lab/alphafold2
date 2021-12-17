@@ -5,7 +5,7 @@ import os
 import sys
 import logging
 import time
-from typing import Sequence
+from typing import Sequence, Union, Optional
 
 # Update PATH.
 sys.path.append('~/anaconda3/envs/af2/lib/python3.7/site-packages')
@@ -24,9 +24,10 @@ RELAX_EXCLUDE_RESIDUES = []
 RELAX_MAX_OUTER_ITERATIONS = 3
 
 
-def af2(sequences: Sequence[Sequence[str]] = [],
-        arg_file: str = None,
-        proc_id: int = None) -> None:
+def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
+        arg_file: Optional[str] = None,
+        proc_id: Optional[int] = None,
+        fitness_fxn = None) -> Optional[Sequence[float]]:
 
     parser = getAF2Parser()
     if arg_file != None:
@@ -190,6 +191,7 @@ def af2(sequences: Sequence[Sequence[str]] = [],
                     feature_dict=input_features,
                     run_multimer=run_multimer,
                     random_seed=seed)
+                results_list.append(result)
                 timings[f'predict_{model_name}_{seed_idx}'] = (time.time() - t_0)
                 logger.info(f'Structure prediction for {model_name}, seed '
                             f'{seed_idx} is completed. Took '
@@ -255,6 +257,13 @@ def af2(sequences: Sequence[Sequence[str]] = [],
         else:
             full_pickle(timing_path, timings)
 
+    if fitness_fxn:
+        fitness_list = []
+        for result in results_list:
+            fitness = fitness_fxn(result)
+            fitness_list.append(fitness)
+        
+        return fitness_list
 
 if __name__ == '__main__':
     af2()
