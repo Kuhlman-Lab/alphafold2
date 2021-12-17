@@ -10,7 +10,7 @@ from functools import partial
 
 # Update PATH.
 sys.path.append('~/anaconda3/envs/af2/lib/python3.7/site-packages')
-sys.path.append('./content/alphafold')
+sys.path.append('../content/alphafold')
 
 # Custom imports.
 from setup import getAF2Parser, QueryManager, getOutputDir
@@ -25,8 +25,9 @@ RELAX_EXCLUDE_RESIDUES = []
 RELAX_MAX_OUTER_ITERATIONS = 3
 
 
-def af2_init(sequences_len: Sequence[Sequence[int]], proc_id: int, arg_file: str,
-             fitness_fxn):
+def af2_init(sequences_len: Sequence[Sequence[int]],
+             proc_id: int,
+             arg_file: str):
     os.environ['TF_FORCE_UNITED_MEMORY'] = '1'
     os.environ['XLA_PYTHON_CLIENT_MEM_FRACTION'] = '2.0'
     os.environ['TF_XLA_FLAGS'] = '--tf_xla_cpu_global_jit'
@@ -137,9 +138,6 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
     logger = logging.getLogger('run_af2')
 
     # Update environmental variables.
-    os.environ['TF_FORCE_UNIFIED_MEMORY'] = '1'
-    os.environ['XLA_PYTHON_CLIENT_MEM_FRACTION'] = '2.0'
-    os.environ['TF_XLA_FLAGS'] = '--tf_xla_cpu_global_jit'
     if proc_id != None:
         os.environ['CUDA_VISIBLE_DEVICES'] = str(proc_id)
     
@@ -356,4 +354,8 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
         return fitness_list
 
 if __name__ == '__main__':
+    os.environ['TF_FORCE_UNITED_MEMORY'] = '1'
+    os.environ['XLA_PYTHON_CLIENT_MEM_FRACTION'] = '2.0'
+    os.environ['TF_XLA_FLAGS'] = '--tf_xla_cpu_global_jit'
+    
     af2()
