@@ -18,6 +18,7 @@ from alphafold.data import pipeline_multimer
 from alphafold.data import feature_processing
 from alphafold.data import templates
 from alphafold.data import msa_pairing
+from alphafold.data.tools import hhsearch
 from alphafold.common import protein
 from alphafold.notebooks import notebook_utils
 from typing import Sequence, Optional, Dict, Tuple, MutableMapping, Union
@@ -435,7 +436,7 @@ def make_template(
             release_dates_path=None,
             obsolete_pdbs_path=None)
 
-    hhsearch_pdb70_runner = template_utils.HHSearch(
+    hhsearch_pdb70_runner = hhsearch.HHSearch(
         binary_path='hhsearch',
         databases=[f'{template_paths}/pdb70'])
 
@@ -443,7 +444,6 @@ def make_template(
     hhsearch_hits = parsers.parse_hhr(hhsearch_result)
     templates_result = template_featurizer.get_templates(
         query_sequence=query_sequence,
-        query_pdb_code=None,
         query_release_date=None,
         hits=hhsearch_hits)
 
