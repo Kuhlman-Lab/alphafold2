@@ -6,7 +6,7 @@ import sys
 import logging
 import time
 from typing import Sequence, Union, Optional
-from functtools import partial
+from functools import partial
 
 # Update PATH.
 sys.path.append('~/anaconda3/envs/af2/lib/python3.7/site-packages')
