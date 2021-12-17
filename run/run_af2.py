@@ -6,6 +6,7 @@ import sys
 import logging
 import time
 from typing import Sequence, Union, Optional
+from functtools import partial
 
 # Update PATH.
 sys.path.append('~/anaconda3/envs/af2/lib/python3.7/site-packages')
@@ -23,6 +24,97 @@ RELAX_STIFFNESS = 10.0
 RELAX_EXCLUDE_RESIDUES = []
 RELAX_MAX_OUTER_ITERATIONS = 3
 
+
+def af2_init(sequences_len: Sequence[Sequence[int]], proc_id: int, arg_file: str,
+             fitness_fxn):
+    os.environ['TF_FORCE_UNITED_MEMORY'] = '1'
+    os.environ['XLA_PYTHON_CLIENT_MEM_FRACTION'] = '2.0'
+    os.environ['TF_XLA_FLAGS'] = '--tf_xla_cpu_global_jit'
+    os.environ['CUDA_VISIBLE_DEVICES'] = str(proc_id)
+
+    import jax
+    from features import (
+        getRawInputs, getChainFeatures, getInputFeatures)
+    from setup import getAF2Parser()
+    from model import (getModelNames, getModelRunner, predictStucture)
+
+    args = parser.parse_args([f'@{arg_file}'])
+
+    output_dir = getOutputDir(out_dir=args.output_dir)
+
+    # Generate mock sequences
+    queries = []
+    for chain_lens in sequences_len:
+        seqs = ['A'*seq_len for seq_len in chain_lens]
+        queries.append( ('sequence', seqs) )
+
+    raw_inputs = getRawInputs(
+        queries=queries,
+        msa_mode='single_sequence',
+        use_templates=False,
+        output_dir=output_dir)
+
+    model_names = getModelNames(
+        first_n_seqs=len(queries[0][1]),
+        last_n_seqs=len(queries[-1][1]),
+        use_ptm=True, num_models=1)
+    
+    query_features = []
+    file_id = None
+    for query_idx, query in enumerate(queries):
+        sequences = query[1]
+    
+        features_for_chain = getChainFeatures(
+            sequences=sequences,
+            raw_inputs=raw_inputs,
+            use_templates=False)
+
+        input_features = getInputFeatures(
+            sequences=sequences,
+            chain_features=features_for_chain,
+            is_prokaryote=False)
+
+        query_features.append( ('input', sequences, input_features) )
+
+    for model_name in model_names:
+        model_runner = getModelRunner(
+            model_name=model_name,
+            num_ensemble=1,
+            is_training=False,
+            num_recycle=1,
+            recycle_tol=0.,
+            params_dir=args.params_dir)
+        
+        if 'multimer' in model_name:
+            run_multimer = True
+        else:
+            run_multimer = False
+        
+        for query in enumerate(query_features):
+            sequences = query[1]
+
+            if len(sequences) > 1 and not run_multimer:
+                continue
+            elif len(sequences) == 1 and run_multimer:
+                continue
+
+            input_features = query[2]
+
+            del sequences
+
+            result = predictStructure(
+                model_runner=model_runner,
+                feature_dict=input_features,
+                run_multimer=run_multimer)
+
+            del result
+
+    def wrapper(seqs):
+        fitness_list = af2(seqs, arg_file, proc_id, fitness_fxn)
+        return fitness_list
+        
+    return wrapper
+    
 
 def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
         arg_file: Optional[str] = None,
