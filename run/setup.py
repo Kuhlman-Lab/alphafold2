@@ -240,7 +240,7 @@ class QueryManager(object):
         self.queries = []
 
         # Detect .fasta and .csv files from the input directory.
-        if input_dir is not None:
+        if input_dir not in ['', None]:
             onlyfiles = [f for f in os.listdir(input_dir) if os.path.isfile(
                          os.path.join(input_dir, f))]
 
@@ -253,7 +253,7 @@ class QueryManager(object):
                 else:
                     self.others.append(os.path.join(input_dir, filename))
                 
-        if len(self.files) == 0 and self.sequences == None:
+        if len(self.files) == 0 and self.sequences == []:
             raise ValueError(
                 f'No input files (.fasta or .csv) detected in '
                 '{input_dir} and no sequences provided.')
@@ -293,7 +293,7 @@ class QueryManager(object):
         queries = []
         
         for sequence in self.sequences:
-            queries += ('input_sequence', sequence)
+            queries.append( ('input_sequence', sequence) )
 
         if queries != []:
             queries = query_utils.clean_and_validate_queries(
