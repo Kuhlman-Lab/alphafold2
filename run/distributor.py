@@ -32,6 +32,9 @@ class Distributor:
                 target=Distributor._worker_loop,
                 args=(
                     f_init,
+                    init_lens,
+                    arg_file,
+                    fitness_fxn,
                     i,
                     self.lock,
                     self.qs_out[i],

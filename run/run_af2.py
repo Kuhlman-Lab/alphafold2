@@ -25,7 +25,7 @@ RELAX_EXCLUDE_RESIDUES = []
 RELAX_MAX_OUTER_ITERATIONS = 3
 
 
-def af2_init(sequences_len: Sequence[Sequence[int]], proc_id: int, arg_file: str,
+def af2_init(proc_id: int, sequences_len: Sequence[Sequence[int]], arg_file: str,
              fitness_fxn):
     os.environ['TF_FORCE_UNITED_MEMORY'] = '1'
     os.environ['XLA_PYTHON_CLIENT_MEM_FRACTION'] = '2.0'
@@ -35,9 +35,10 @@ def af2_init(sequences_len: Sequence[Sequence[int]], proc_id: int, arg_file: str
     import jax
     from features import (
         getRawInputs, getChainFeatures, getInputFeatures)
-    from setup import getAF2Parser()
-    from model import (getModelNames, getModelRunner, predictStucture)
+    from setup import getAF2Parser
+    from model import (getModelNames, getModelRunner, predictStructure)
 
+    parser = getAF2Parser()
     args = parser.parse_args([f'@{arg_file}'])
 
     output_dir = getOutputDir(out_dir=args.output_dir)
@@ -84,13 +85,13 @@ def af2_init(sequences_len: Sequence[Sequence[int]], proc_id: int, arg_file: str
             num_recycle=1,
             recycle_tol=0.,
             params_dir=args.params_dir)
-        
+
         if 'multimer' in model_name:
             run_multimer = True
         else:
             run_multimer = False
         
-        for query in enumerate(query_features):
+        for query in query_features:
             sequences = query[1]
 
             if len(sequences) > 1 and not run_multimer:
@@ -109,7 +110,7 @@ def af2_init(sequences_len: Sequence[Sequence[int]], proc_id: int, arg_file: str
 
             del result
 
-    af2_partial = partial(af2, arg_file=arg_file, proc_id=proc_id, fitness_fxn=fitnes_fxn)
+    af2_partial = partial(af2, arg_file=arg_file, proc_id=proc_id, fitness_fxn=fitness_fxn)
 
     return af2_partial
     
