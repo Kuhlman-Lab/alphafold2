@@ -116,6 +116,7 @@ class Distributor:
     def _worker_loop(f_init, init_lens, arg_file, fitness_fxn, proc_id, lock, q_in, q_out):
 
         f = f_init(proc_id, init_lens, arg_file, fitness_fxn)
+        print(f'init fxn complete for process {proc_id}.')
    
         is_job, val = q_in.get()
         while is_job:

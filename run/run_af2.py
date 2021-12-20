@@ -103,10 +103,12 @@ def af2_init(proc_id: int, sequences_len: Sequence[Sequence[int]], arg_file: str
 
             del sequences
 
+            t = time.time()
             result = predictStructure(
                 model_runner=model_runner,
                 feature_dict=input_features,
                 run_multimer=run_multimer)
+            print(f'Model {model_name} took {time.time()-t} sec on GPU {os.environ["CUDA_VISIBLE_DEVICES"]}.')
 
             del result
 
@@ -281,6 +283,7 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
                     random_seed=seed)
                 results_list.append(result)
                 timings[f'predict_{model_name}_{seed_idx}'] = (time.time() - t_0)
+                print(f'Model {model_name} took {timings[f"predict_{model_name}_{seed_idx}"]} sec on GPU {os.environ["CUDA_VISIBLE_DEVICES"]}.')
                 logger.info(f'Structure prediction for {model_name}, seed '
                             f'{seed_idx} is completed. Took '
                             f'{timings[f"predict_{model_name}_{seed_idx}"]} '
