@@ -21,8 +21,8 @@ MultimerQuery = Tuple[str, str, Sequence[str]]
 
 
 def getRandomSeeds(
-        random_seed: Optional[int],
-        num_seeds: int) -> Sequence[int]:
+        random_seed: Optional[int] = None,
+        num_seeds: int = 1) -> Sequence[int]:
 
     seeds = []
     # If a random seed was provided, guarantee that it will be run.

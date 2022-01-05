@@ -98,11 +98,15 @@ def _clean_and_validate_single_query(
     """
     filename = query[0]
     sequences = query[-1]
-    if len(query) == 2:
-        # If a monomer query is given, then it has an oligomeric state of 1.
-        oligomer = '1'
+    
+    if filename == '_INPUT_':
+        oligomer = ''
     else:
-        oligomer = query[1]
+        if len(query) == 2:
+            # If a monomer query is given, then it has an oligomeric state of 1.
+            oligomer = '1'
+        else:
+            oligomer = query[1]
 
     # If a monomer query is given, then it has single sequence. Need to treat as
     # a list of sequences.
