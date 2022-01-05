@@ -293,7 +293,7 @@ class QueryManager(object):
         queries = []
         
         for sequence in self.sequences:
-            queries.append( ('input_sequence', sequence) )
+            queries.append( ('_INPUT_', sequence) )
 
         if queries != []:
             queries = query_utils.clean_and_validate_queries(

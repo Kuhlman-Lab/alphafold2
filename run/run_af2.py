@@ -120,7 +120,8 @@ def af2_init(proc_id: int, sequences_len: Sequence[Sequence[int]], arg_file: str
 def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
         arg_file: Optional[str] = None,
         proc_id: Optional[int] = None,
-        fitness_fxn = None) -> Optional[Sequence[float]]:
+        fitness_fxn = None,
+        compiled_runner = None) -> Optional[Sequence[float]]:
 
     parser = getAF2Parser()
     if arg_file != None:
@@ -245,13 +246,17 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
 
     # Predict structures.
     for model_name in model_names:
-        model_runner = getModelRunner(
-            model_name=model_name,
-            num_ensemble=args.num_ensemble,
-            is_training=args.is_training,
-            num_recycle=args.max_recycle,
-            recycle_tol=args.recycle_tol,
-            params_dir=args.params_dir)
+        
+        if compiled_runner is None:
+            model_runner = getModelRunner(
+                model_name=model_name,
+                num_ensemble=args.num_ensemble,
+                is_training=args.is_training,
+                num_recycle=args.max_recycle,
+                recycle_tol=args.recycle_tol,
+                params_dir=args.params_dir)
+        else:
+            model_runner = compiled_runner
         logger.info(f'Obtained model runner for {model_name}.')
 
         if 'multimer' in model_name:
@@ -329,9 +334,11 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
                         logger.info('Results have been pickled.')
                     del results_path
                         
-                del jobname, result, prefix, input_features
-            # end for seed in seeds
+                del jobname, result
             
+            # end for seed in seeds
+            del prefix, input_features
+
         # end for query in queries
         del run_multimer
         
