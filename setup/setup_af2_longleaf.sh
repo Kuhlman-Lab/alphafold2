@@ -4,14 +4,14 @@ has_conda=$(grep /nas/longleaf/apps/anaconda/2020.07 ~/.bashrc)
 if [ ! "$has_conda" ]; then
     echo "# >>> conda initialize >>>" >> ~/.bashrc
     echo "# !! Contents within this block are managed by 'conda init' !!" >> ~/.bashrc
-    echo "__conda_setup='$('/nas/longleaf/apps/anaconda/2020.07/bin/conda' 'shell.bash' 'hook' 2> /dev/null)'" >> ~/.bashrc
-    echo "if [ $? -eq 0 ]; then" >> ~/.bashrc
-    echo "    eval '$__conda_setup'" >> ~/.bashrc
+    echo "__conda_setup='\$('/nas/longleaf/apps/anaconda/2020.07/bin/conda' 'shell.bash' 'hook' 2> /dev/null)'" >> ~/.bashrc
+    echo "if [ \$? -eq 0 ]; then" >> ~/.bashrc
+    echo "    eval '\$__conda_setup'" >> ~/.bashrc
     echo "else" >> ~/.bashrc
     echo "    if [ -f '/nas/longleaf/apps/anaconda/2020.07/etc/profile.d/conda.sh' ]; then" >> ~/.bashrc
     echo "        . '/nas/longleaf/apps/anaconda/2020.07/etc/profile.d/conda.sh'" >> ~/.bashrc
     echo "    else" >> ~/.bashrc
-    echo "        export PATH='/nas/longleaf/apps/anaconda/2020.07/bin:$PATH'" >> ~/.bashrc
+    echo "        export PATH='/nas/longleaf/apps/anaconda/2020.07/bin:\$PATH'" >> ~/.bashrc
     echo "    fi" >> ~/.bashrc
     echo "fi" >> ~/.bashrc
     echo "unset __conda_setup" >> ~/.bashrc
