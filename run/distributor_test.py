@@ -64,3 +64,12 @@ def test_distributor(mode: str = 'monomer'):
 
     for i, j in zip(all_work, all_results):
         print('result:', i[0], j[0])
+
+
+if __name__ == '__main__':
+
+    print('Monomer Test:')
+    test_distributor(mode='monomer')
+
+    print('Multimer Test:')
+    test_distributor(mode='multimer')
