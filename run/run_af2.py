@@ -25,8 +25,9 @@ RELAX_EXCLUDE_RESIDUES = []
 RELAX_MAX_OUTER_ITERATIONS = 3
 
 
-def af2_init(proc_id: int, sequences_len: Sequence[Sequence[int]], arg_file: str,
-             fitness_fxn):
+def af2_init(proc_id: int, arg_file: str, lengths: Sequence[Union[str, Sequence[str]]], fitness_fxn):
+    print('initialization of process', proc_id)
+    
     os.environ['TF_FORCE_UNITED_MEMORY'] = '1'
     os.environ['XLA_PYTHON_CLIENT_MEM_FRACTION'] = '2.0'
     os.environ['TF_XLA_FLAGS'] = '--tf_xla_cpu_global_jit'
@@ -35,8 +36,8 @@ def af2_init(proc_id: int, sequences_len: Sequence[Sequence[int]], arg_file: str
     import jax
     from features import (
         getRawInputs, getChainFeatures, getInputFeatures)
-    from setup import getAF2Parser
-    from model import (getModelNames, getModelRunner, predictStructure)
+    from setup import (getAF2Parser, QueryManager, getOutputDir)
+    from model import (getModelNames, getModelRunner, predictStructure, getRandomSeeds)
 
     parser = getAF2Parser()
     args = parser.parse_args([f'@{arg_file}'])
@@ -44,11 +45,20 @@ def af2_init(proc_id: int, sequences_len: Sequence[Sequence[int]], arg_file: str
     output_dir = getOutputDir(out_dir=args.output_dir)
 
     # Generate mock sequences
-    queries = []
-    for chain_lens in sequences_len:
-        seqs = ['A'*seq_len for seq_len in chain_lens]
-        queries.append( ('sequence', seqs) )
+    sequences = []
+    for protein in lengths:
+        if isinstance(protein, int):
+            sequences.append( ['A'*protein] )
+        elif isinstance(protein, list):
+            sequence = []
+            for chain in protein:
+                sequence.append( 'A'*chain )
+            sequences.append(sequence)
 
+    qm = QueryManager(
+        input_dir=args.input_dir,
+        sequences=
+    
     raw_inputs = getRawInputs(
         queries=queries,
         msa_mode='single_sequence',
@@ -197,7 +207,8 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
     model_names = getModelNames(
         first_n_seqs=len(queries[0][1]),
         last_n_seqs=len(queries[-1][1]),
-        use_ptm=args.use_ptm, num_models=args.num_models)
+        use_ptm=args.use_ptm, num_models=args.num_models,
+        use_multimer=not args.no_multimer_models)
 
     if args.use_amber:
         amber_relaxer = relax.AmberRelaxation(
@@ -230,12 +241,14 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
             raw_inputs=raw_inputs_from_sequence,
             use_templates=args.use_templates,
             custom_msa_path=args.custom_msa_path,
-            custom_template_path=args.custom_template_path)
+            custom_template_path=args.custom_template_path,
+            use_multimer=not args.no_multimer_models)
 
         input_features = getInputFeatures(
             sequences=sequences,
             chain_features=features_for_chain,
-            is_prokaryote=args.is_prokaryote)
+            is_prokaryote=args.is_prokaryote,
+            use_multimer=not args.no_multimer_models)
         
         timings[f'features_{query_idx}'] = time.time() - t_0
         logger.info(f'Features for query {query_idx} have been generated. Took '
@@ -244,6 +257,7 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
         query_features.append( (prefix, sequences, input_features) )
 
     results_list = []
+    print(query_features)
 
     # Predict structures.
     for model_name in model_names:
@@ -270,7 +284,8 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
             sequences = query[1]
 
             if len(sequences) > 1 and 'multimer' not in model_name:
-                continue
+                if not args.no_multimer_models:
+                    continue
             elif len(sequences) == 1 and 'multimer' in model_name:
                 continue
             

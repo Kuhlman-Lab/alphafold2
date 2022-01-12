@@ -151,10 +151,18 @@ def getAF2Parser() -> FileArgumentParser:
 
     # Model Control Arguments
     parser.add_argument('--use_ptm',
-                         action='store_true',
+                         action='store_false',
                          help='Uses the pTM fine-tuned model parameters to '
                          'get PAE per structure. Disable to use the original '
-                         'model parameters. Default is False')
+                         'model parameters. Default is True.')
+
+    parser.add_argument('--no_multimer_models',
+                        action='store_true',
+                        help='Overwrites the default method of using '
+                        'AF-Multimer for multimers and AF for monomers. '
+                        'Instead, AF will be used for both multimers and '
+                        'monomers, with a "gap" inserted for multimers. '
+                        'Default is False.')
 
     parser.add_argument('--num_models',
                          default=5,
