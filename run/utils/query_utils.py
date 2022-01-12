@@ -1,12 +1,17 @@
 """ Utility functions for parsing queries from a list of input files. """
 
+# Standard imports.
 import os
 import csv
 import logging
 from typing import Sequence, Tuple, Union
+
+# AlphaFold imports.
 from alphafold.common import residue_constants
 from alphafold.data import pipeline
 
+
+# Get logger.
 logger = logging.getLogger('query_utils')
 
 # (filename, sequence)
@@ -16,11 +21,13 @@ MonomerQuery = Tuple[str, str]
 MultimerQuery = Tuple[str, str, Sequence[str]]
 
 # (filename, [sequences])
-CleanQuery = Tuple[str, str, Sequence[str]]
+CleanQuery = Tuple[str, Sequence[str]]
 
 
 def parse_fasta_files(files: Sequence[str]) -> Sequence[MonomerQuery]:
-    """ Parse a list of .fasta files and return a list of monomer queries. """
+    """ 
+    Parse a list of .fasta files and return a list of monomer queries. 
+    """
     query_list = []
     
     for filename in files:
@@ -37,7 +44,9 @@ def parse_fasta_files(files: Sequence[str]) -> Sequence[MonomerQuery]:
 
 
 def parse_csv_files(files: Sequence[str]) -> Sequence[MultimerQuery]:
-    """ Parse a list of .csv files and return a list of multimer queries. """
+    """ 
+    Parse a list of .csv files and return a list of multimer queries. 
+    """
     query_list = []
 
     for filename in files:
@@ -60,7 +69,9 @@ def clean_and_validate_queries(
         max_length: int,
         max_multimer_length: int
     ) -> Sequence[CleanQuery]:
-    """ Validates and cleans input queries. """
+    """ 
+    Validates and cleans input queries. 
+    """
     query_list = []
 
     for query in input_queries:
@@ -82,14 +93,20 @@ def clean_and_validate_queries(
 def _clean_and_validate_single_query(
         query: Union[MonomerQuery, MultimerQuery], min_length: int,
         max_length: int, max_multimer_length: int) -> CleanQuery:
-    """Checks that the parsed query is ok and returns a clean version of it."""
+    """
+    Checks that the parsed query is ok and returns a clean version of it.
+    """
     filename = query[0]
     sequences = query[-1]
-    if len(query) == 2:
-        # If a monomer query is given, then it has an oligomeric state of 1.
-        oligomer = '1'
+    
+    if filename == '_INPUT_':
+        oligomer = ''
     else:
-        oligomer = query[1]
+        if len(query) == 2:
+            # If a monomer query is given, then it has an oligomeric state of 1.
+            oligomer = '1'
+        else:
+            oligomer = query[1]
 
     # If a monomer query is given, then it has single sequence. Need to treat as
     # a list of sequences.
@@ -181,8 +198,10 @@ def _clean_and_validate_single_query(
     
 def detect_duplicate_queries(
         query_list: Sequence[CleanQuery]) -> Sequence[CleanQuery]:
-    """ Detects duplicate queries from query list. If a same query comes from 
-        two different sources, it is considered a duplicate. """
+    """ 
+    Detects duplicate queries from query list. If a same query comes from 
+    two different sources, it is considered a duplicate. 
+    """
     clean_query_list = []
 
     for query in query_list:
@@ -191,7 +210,8 @@ def detect_duplicate_queries(
             clean_query_list.append(query)
         else:
             dupe = False
-            
+
+            # If the sequences of the queries are the same, then its a dupe.
             for old_query in clean_query_list:
                 if old_query[1] == query[1]:
                     dupe = True
@@ -203,6 +223,10 @@ def detect_duplicate_queries(
     
 
 def getFullSequence(query: Union[MonomerQuery, MultimerQuery]) -> str:
+    """
+    Given a query, returns the full sequence for which a structure is predicted.
+    I.e. if given a multimer, returns the full multimer sequence.
+    """
     if len(query) == 2:
         full_sequence = query[1]
     else:
@@ -215,5 +239,3 @@ def getFullSequence(query: Union[MonomerQuery, MultimerQuery]) -> str:
             seq * int(oligo) for seq, oligo in zip(sequences, oligo_list)])
 
     return full_sequence
-
-    
