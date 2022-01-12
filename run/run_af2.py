@@ -235,6 +235,7 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
             sequences=sequences,
             chain_features=features_for_chain,
             is_prokaryote=args.is_prokaryote)
+        
         timings[f'features_{query_idx}'] = time.time() - t_0
         logger.info(f'Features for query {query_idx} have been generated. Took '
                     f'{timings[f"features_{query_idx}"]} seconds.')
@@ -283,7 +284,8 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
                     random_seed=seed)
                 results_list.append(result)
                 timings[f'predict_{model_name}_{seed_idx}'] = (time.time() - t_0)
-                print(f'Model {model_name} took {timings[f"predict_{model_name}_{seed_idx}"]} sec on GPU {os.environ["CUDA_VISIBLE_DEVICES"]}.')
+                if proc_id is not None:
+                    print(f'Model {model_name} took {timings[f"predict_{model_name}_{seed_idx}"]} sec on GPU {os.environ["CUDA_VISIBLE_DEVICES"]}.')
                 logger.info(f'Structure prediction for {model_name}, seed '
                             f'{seed_idx} is completed. Took '
                             f'{timings[f"predict_{model_name}_{seed_idx}"]} '
