@@ -33,10 +33,9 @@ def getAF2Parser() -> FileArgumentParser:
 
     # I/O Arguments
     parser.add_argument('--input_dir',
-                        default='.',
+                        default='',
                         type=str,
-                        help='Path to directory that contains input files. '
-                        'Default is ./.')
+                        help='Path to directory that contains input files.')
 
     parser.add_argument('--output_dir',
                         default='',
@@ -45,6 +44,7 @@ def getAF2Parser() -> FileArgumentParser:
                         'Default is ./prediction_{datetime}.')
 
     parser.add_argument('--params_dir',
+                        default='../alphafold/data/',
                         type=str,
                         help='Path to the directory that holds the \'params\' '
                         'folder and all of the compressed parameter weights. '
@@ -65,6 +65,16 @@ def getAF2Parser() -> FileArgumentParser:
                         action='store_true',
                         help='Whether or not to save run times in pickle file '
                         'at the end of the run. Default is False.')
+
+    parser.add_argument('--no_logging',
+                        action='store_true',
+                        help='Whether or not to include logging features.')
+
+    parser.add_argument('--design_run',
+                        action='store_true',
+                        help='Whether or not AF2 predictions are being used '
+                        'in a design run. Disables most outputs unless '
+                        'manually overrided.')
 
     # Sequence Control Arguments
     parser.add_argument('--min_length',
@@ -141,10 +151,18 @@ def getAF2Parser() -> FileArgumentParser:
 
     # Model Control Arguments
     parser.add_argument('--use_ptm',
-                         action='store_true',
+                         action='store_false',
                          help='Uses the pTM fine-tuned model parameters to '
                          'get PAE per structure. Disable to use the original '
-                         'model parameters. Default is False')
+                         'model parameters. Default is True.')
+
+    parser.add_argument('--no_multimer_models',
+                        action='store_true',
+                        help='Overwrites the default method of using '
+                        'AF-Multimer for multimers and AF for monomers. '
+                        'Instead, AF will be used for both multimers and '
+                        'monomers, with a "gap" inserted for multimers. '
+                        'Default is False.')
 
     parser.add_argument('--num_models',
                          default=5,
@@ -213,10 +231,14 @@ class QueryManager(object):
     """Manager that will parse, validate, and store queries. """
 
     def __init__(self,
-            input_dir: str,
+            input_dir: str = None,
+            sequences: Sequence[Sequence[str]] = [],
             min_length: int = 16,
             max_length: int = 2500,
             max_multimer_length: int = 2500) -> None:
+
+        self.sequences = sequences
+        
         self.min_length = min_length
         self.max_length = max_length
         self.max_multimer_length = max_multimer_length
@@ -226,26 +248,28 @@ class QueryManager(object):
         self.queries = []
 
         # Detect .fasta and .csv files from the input directory.
-        onlyfiles = [f for f in os.listdir(input_dir) if os.path.isfile(
-                     os.path.join(input_dir, f))]
+        if input_dir not in ['', None]:
+            onlyfiles = [f for f in os.listdir(input_dir) if os.path.isfile(
+                         os.path.join(input_dir, f))]
 
-        for filename in onlyfiles:
-            extension = filename.split('.')[-1]
-            if extension in ['fasta', 'csv']:
-                if extension not in self.files:
-                    self.files[extension] = []
-                self.files[extension].append(os.path.join(input_dir, filename))
-            else:
-                self.others.append(os.path.join(input_dir, filename))
+            for filename in onlyfiles:
+                extension = filename.split('.')[-1]
+                if extension in ['fasta', 'csv']:
+                    if extension not in self.files:
+                        self.files[extension] = []
+                    self.files[extension].append(os.path.join(input_dir, filename))
+                else:
+                    self.others.append(os.path.join(input_dir, filename))
                 
-        if len(self.files) == 0:
+        if len(self.files) == 0 and self.sequences == []:
             raise ValueError(
-                f'No input .fasta or .csv files detected in '
-                '{input_dir}')
+                f'No input files (.fasta or .csv) detected in '
+                '{input_dir} and no sequences provided.')
 
-        filenames = [pathlib.Path(p).stem for l in self.files.values() for p in l]
-        if len(filenames) != len(set(filenames)):
-            raise ValueError('All input files must have a unique basename.')
+        if len(self.files) != 0:
+            filenames = [pathlib.Path(p).stem for l in self.files.values() for p in l]
+            if len(filenames) != len(set(filenames)):
+                raise ValueError('All input files must have a unique basename.')
         
     def parse_files(self) -> None:
 
@@ -271,3 +295,25 @@ class QueryManager(object):
         # Remove duplicate queries to reduce redundancy
         self.queries = query_utils.detect_duplicate_queries(
             query_list=self.queries)
+
+    def parse_sequences(self) -> None:
+
+        queries = []
+        
+        for sequence in self.sequences:
+            queries.append( ('_INPUT_', sequence) )
+
+        if queries != []:
+            queries = query_utils.clean_and_validate_queries(
+                input_queries=queries,
+                min_length=self.min_length,
+                max_length=self.max_length,
+                max_multimer_length=self.max_multimer_length)
+
+        # Add queries to overall query list.
+        self.queries += queries
+
+        # Remove duplicate queries to reduce redundancy.
+        self.queries = query_utils.detect_duplicate_queries(
+            query_list=self.queries)
+        

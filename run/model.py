@@ -21,8 +21,8 @@ MultimerQuery = Tuple[str, str, Sequence[str]]
 
 
 def getRandomSeeds(
-        random_seed: Optional[int],
-        num_seeds: int) -> Sequence[int]:
+        random_seed: Optional[int] = None,
+        num_seeds: int = 1) -> Sequence[int]:
 
     seeds = []
     # If a random seed was provided, guarantee that it will be run.
@@ -38,17 +38,19 @@ def getRandomSeeds(
 
 def getModelNames(
         first_n_seqs: int, last_n_seqs: int,
-        use_ptm: bool = True, num_models: int = 5) -> Tuple[str]:
+        use_ptm: bool = True, num_models: int = 5,
+        use_multimer = True) -> Tuple[str]:
 
     include_monomer = False
     include_multimer = False
     if first_n_seqs == 1:
         include_monomer = True
     if last_n_seqs > 1:
-        include_multimer = True
+        if use_multimer:
+            include_multimer = True
 
     model_names = ()
-    if include_monomer:
+    if include_monomer or not use_multimer:
         key = 'monomer_ptm' if use_ptm else 'monomer'
         monomer_models = config.MODEL_PRESETS[key]
         model_names += monomer_models[:num_models]
@@ -82,7 +84,7 @@ def getModelRunner(
 def predictStructure(
         model_runner: model.RunModel,
         feature_dict: pipeline.FeatureDict,
-        model_type: str,
+        run_multimer: bool,
         random_seed: int = random.randrange(sys.maxsize)
         ) -> Dict[str, np.ndarray]:
 
@@ -108,6 +110,6 @@ def predictStructure(
         features=processed_feature_dict,
         result=prediction,
         b_factors=b_factors,
-        remove_leading_feature_dimension= model_type == 'monomer')
+        remove_leading_feature_dimension=not run_multimer)
     
     return result
