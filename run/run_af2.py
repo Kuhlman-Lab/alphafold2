@@ -57,59 +57,65 @@ def af2_init(proc_id: int, arg_file: str, lengths: Sequence[Union[str, Sequence[
 
     qm = QueryManager(
         input_dir=args.input_dir,
-        sequences=
+        sequences=sequences,
+        min_length=args.min_length,
+        max_length=args.max_length,
+        max_multimer_length=args.max_multimer_length)
+    qm.parse_files()
+    qm.parse_sequences()
+    queries = qm.queries
+    del qm
     
     raw_inputs = getRawInputs(
         queries=queries,
-        msa_mode='single_sequence',
-        use_templates=False,
+        msa_mode=args.msa_mode,
+        use_templates=args.use_templates,
         output_dir=output_dir)
 
     model_names = getModelNames(
         first_n_seqs=len(queries[0][1]),
         last_n_seqs=len(queries[-1][1]),
-        use_ptm=True, num_models=1)
+        use_ptm=args.use_ptm, num_models=args.num_models)
     
     query_features = []
-    file_id = None
     for query_idx, query in enumerate(queries):
         sequences = query[1]
     
         features_for_chain = getChainFeatures(
             sequences=sequences,
             raw_inputs=raw_inputs,
-            use_templates=False)
+            use_templates=args.use_templates)
 
         input_features = getInputFeatures(
             sequences=sequences,
             chain_features=features_for_chain,
-            is_prokaryote=False)
+            is_prokaryote=args.is_prokaryote)
 
-        query_features.append( ('input', sequences, input_features) )
+        query_features.append( (sequences, input_features) )
 
+    results_list = []
     for model_name in model_names:
         model_runner = getModelRunner(
             model_name=model_name,
-            num_ensemble=1,
-            is_training=False,
-            num_recycle=1,
-            recycle_tol=0.,
+            num_ensemble=args.num_ensemble,
+            is_training=args.is_training,
+            num_recycle=args.max_recycle,
+            recycle_tol=args.recycle_tol,
             params_dir=args.params_dir)
 
+        run_multimer = False
         if 'multimer' in model_name:
             run_multimer = True
-        else:
-            run_multimer = False
         
         for query in query_features:
-            sequences = query[1]
+            sequences = query[0]
 
             if len(sequences) > 1 and not run_multimer:
                 continue
             elif len(sequences) == 1 and run_multimer:
                 continue
 
-            input_features = query[2]
+            input_features = query[1]
 
             del sequences
 
@@ -118,11 +124,9 @@ def af2_init(proc_id: int, arg_file: str, lengths: Sequence[Union[str, Sequence[
                 model_runner=model_runner,
                 feature_dict=input_features,
                 run_multimer=run_multimer)
-            print(f'Model {model_name} took {time.time()-t} sec on GPU {os.environ["CUDA_VISIBLE_DEVICES"]}.')
+            print(f'Model {model_name} took {time.time()-t} sec on GPU {proc_id}.')
 
-            del result
-
-    af2_partial = partial(af2, arg_file=arg_file, proc_id=proc_id, fitness_fxn=fitness_fxn)
+    af2_partial = partial(af2, arg_file=arg_file, proc_id=proc_id, fitness_fxn=fitness_fxn, compiled_runner=model_runner)
 
     return af2_partial
     
