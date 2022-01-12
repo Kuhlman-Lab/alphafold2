@@ -12,7 +12,7 @@ class Distributor:
     """
 
    
-    def __init__(self, n_workers, f_init, init_lens, arg_file, fitness_fxn):
+    def __init__(self, n_workers, f_init, arg_file, lengths, fitness_fxn):
         """
         Construct a Distributor that manages n_workers sub-processes.
         The distributor will give work to its sub-processes in the
@@ -32,13 +32,13 @@ class Distributor:
                 target=Distributor._worker_loop,
                 args=(
                     f_init,
-                    init_lens,
-                    arg_file,
-                    fitness_fxn,
                     i,
                     self.lock,
                     self.qs_out[i],
-                    self.q_in)
+                    self.q_in,
+                    arg_file,
+                    lengths,
+                    fitness_fxn)
             )
             for i in range(n_workers)
         ]
@@ -90,7 +90,7 @@ class Distributor:
         while len(work_queue) > 0:
             proc_id, val = self.q_in.get()
             count_completed += 1
-            print("work_list loop count completed:", count_completed)
+            #print("work_list loop count completed:", count_completed)
             job_ind = job_ind_for_worker[proc_id]
             assert job_ind != -1
             job_output[job_ind] = val
@@ -102,7 +102,7 @@ class Distributor:
 
         while count_completed < n_jobs:
             proc_id, val = self.q_in.get()
-            print("wait-for-jobs to finish loop. count completed:", count_completed)
+            #print("wait-for-jobs to finish loop. count completed:", count_completed)
             count_completed += 1
             job_ind = job_ind_for_worker[proc_id]
             assert job_ind != -1
@@ -113,9 +113,9 @@ class Distributor:
 
            
     @staticmethod
-    def _worker_loop(f_init, init_lens, arg_file, fitness_fxn, proc_id, lock, q_in, q_out):
+    def _worker_loop(f_init, proc_id, lock, q_in, q_out, arg_file, lengths, fitness_fxn):
 
-        f = f_init(proc_id, init_lens, arg_file, fitness_fxn)
+        f = f_init(proc_id, arg_file, lengths, fitness_fxn)
         print(f'init fxn complete for process {proc_id}.')
    
         is_job, val = q_in.get()
