@@ -75,7 +75,8 @@ def af2_init(proc_id: int, arg_file: str, lengths: Sequence[Union[str, Sequence[
     model_names = getModelNames(
         first_n_seqs=len(queries[0][1]),
         last_n_seqs=len(queries[-1][1]),
-        use_ptm=args.use_ptm, num_models=args.num_models)
+        use_ptm=args.use_ptm, num_models=args.num_models,
+        use_multimer=not args.no_multimer_models)
     
     query_features = []
     for query_idx, query in enumerate(queries):
@@ -84,12 +85,14 @@ def af2_init(proc_id: int, arg_file: str, lengths: Sequence[Union[str, Sequence[
         features_for_chain = getChainFeatures(
             sequences=sequences,
             raw_inputs=raw_inputs,
-            use_templates=args.use_templates)
+            use_templates=args.use_templates,
+            use_multimer=not args.no_multimer_models)
 
         input_features = getInputFeatures(
             sequences=sequences,
             chain_features=features_for_chain,
-            is_prokaryote=args.is_prokaryote)
+            is_prokaryote=args.is_prokaryote,
+            use_multimer=not args.no_multimer_models)
 
         query_features.append( (sequences, input_features) )
 
@@ -111,7 +114,8 @@ def af2_init(proc_id: int, arg_file: str, lengths: Sequence[Union[str, Sequence[
             sequences = query[0]
 
             if len(sequences) > 1 and not run_multimer:
-                continue
+                if not args.no_multimer_models:
+                    continue
             elif len(sequences) == 1 and run_multimer:
                 continue
 
@@ -261,7 +265,6 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
         query_features.append( (prefix, sequences, input_features) )
 
     results_list = []
-    print(query_features)
 
     # Predict structures.
     for model_name in model_names:
@@ -287,10 +290,10 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
             prefix = query[0] + f'_{model_name}'
             sequences = query[1]
 
-            if len(sequences) > 1 and 'multimer' not in model_name:
+            if len(sequences) > 1 and not run_multimer:
                 if not args.no_multimer_models:
                     continue
-            elif len(sequences) == 1 and 'multimer' in model_name:
+            elif len(sequences) == 1 and run_multimer:
                 continue
             
             input_features = query[2]
