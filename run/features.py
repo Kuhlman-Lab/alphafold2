@@ -331,78 +331,166 @@ def getChainFeatures(
         raw_inputs: RawInput,
         use_templates: bool = False,
         custom_msa_path: Optional[str] = None,
-        custom_template_path: Optional[str] = None
-        ) -> MutableMapping[str, pipeline.FeatureDict]:
+        custom_template_path: Optional[str] = None,
+        use_multimer = True) -> MutableMapping[str, pipeline.FeatureDict]:
     features_for_chain = {}
 
     if custom_msa_path:
         custom_msa_dict = getCustomMSADict(custom_msa_path)
     else:
         custom_msa_dict = {}
+
+    if len(sequences) == 1 or use_multimer:
+        for sequence_idx, sequence in enumerate(sequences):
+            feature_dict = {}
+            # Get sequence features
+            feature_dict.update(pipeline.make_sequence_features(
+                sequence=sequence, description='query', num_res=len(sequence)))
+
+            # Get MSA features
+            if sequence in custom_msa_dict:
+                msa = getMSA(
+                    sequence=sequence, custom_a3m_lines=custom_msa_dict[sequence])
+            else:
+                msa = getMSA(
+                    sequence=sequence, raw_inputs_from_sequence=raw_inputs)
+                feature_dict.update(pipeline.make_msa_features(msas=msa))
+
+            if len(set(sequences)) > 1:
+                uniprot_msa = getUniprotMSA(
+                    sequence=sequence)
+                valid_feats = msa_pairing.MSA_FEATURES + (
+                    'msa_uniprot_accession_identifiers',
+                    'msa_species_identifiers',
+                )
+                all_seq_features = {
+                    f'{k}_all_seq': v for
+                    k, v in pipeline.make_msa_features(uniprot_msa).items()
+                    if k in valid_feats}
+                feature_dict.update(all_seq_features)
         
-    for sequence_idx, sequence in enumerate(sequences):
-        feature_dict = {}
-        # Get sequence features
-        feature_dict.update(pipeline.make_sequence_features(
-            sequence=sequence, description='query', num_res=len(sequence)))
+            # Get template features
+            if custom_template_path:
+                feature_dict.update(
+                    get_custom_template_features(custom_templates_path))
+            elif use_templates:
+                new_raw_inputs = copy.deepcopy(raw_inputs[sequence])
+                a3m = new_raw_inputs[0]
+                template = new_raw_inputs[1]
 
-        # Get MSA features
-        if sequence in custom_msa_dict:
-            msa = getMSA(
-                sequence=sequence, custom_a3m_lines=custom_msa_dict[sequence])
-        else:
-            msa = getMSA(
-                sequence=sequence, raw_inputs_from_sequence=raw_inputs)
-        feature_dict.update(pipeline.make_msa_features(msas=msa))
-
-        if len(set(sequences)) > 1:
-            uniprot_msa = getUniprotMSA(
-                sequence=sequence)
-            valid_feats = msa_pairing.MSA_FEATURES + (
-                'msa_uniprot_accession_identifiers',
-                'msa_species_identifiers',
-            )
-            all_seq_features = {
-                f'{k}_all_seq': v for
-                k, v in pipeline.make_msa_features(uniprot_msa).items()
-                if k in valid_feats}
-            feature_dict.update(all_seq_features)
-        
-        # Get template features
-        if custom_template_path:
-            feature_dict.update(
-                get_custom_template_features(custom_templates_path))
-        elif use_templates:
-            new_raw_inputs = copy.deepcopy(raw_inputs[sequence])
-            a3m = new_raw_inputs[0]
-            template = new_raw_inputs[1]
-
-            if template == None:
+                if template == None:
+                    feature_dict.update(
+                        notebook_utils.empty_placeholder_template_features(
+                            num_templates=0, num_res=len(sequence)))
+                else:
+                    feature_dict.update(make_template(sequence, a3m, template))
+            else:
                 feature_dict.update(
                     notebook_utils.empty_placeholder_template_features(
                         num_templates=0, num_res=len(sequence)))
-            else:
-                feature_dict.update(make_template(sequence, a3m, template))
-        else:
-            feature_dict.update(
-                notebook_utils.empty_placeholder_template_features(
-                    num_templates=0, num_res=len(sequence)))
+
+            features_for_chain[
+                protein.PDB_CHAIN_IDS[sequence_idx]] = feature_dict
+    else:
+        feature_dict = {}
+
+        a3m_lines = pair_msa(sequences, raw_inputs)
+
+        total_sequence = ''
+        Ls = []
+        for sequence in sequences:
+            total_sequence += sequence
+            Ls.append(len(sequence))
+
+        msa = parsers.parse_a3m(a3m_lines)
+
+        # Sequence features.
+        feature_dict.update(
+            pipeline.make_sequence_features(
+                sequence=total_sequence, description='none', num_res=len(total_sequence)))
+
+        # MSA features.
+        feature_dict.update(
+            pipeline.make_msa_features([msa]))
+
+        # Template features.
+        feature_dict.update(
+            notebook_utils.empty_placeholder_template_features(
+                num_templates=0, num_res=len(sequence)))
+
+        feature_dict['residue_index'] = chain_break(feature_dict['residue_index'], Ls)
+        feature_dict['asym_id'] = np.array(
+            [int(n) for n, l in enumerate(Ls) for _ in range(0, l)])
 
         features_for_chain[
-            protein.PDB_CHAIN_IDS[sequence_idx]] = feature_dict
+                protein.PDB_CHAIN_IDS[0]] = feature_dict
         
     return features_for_chain
 
 
+def chain_break(idx_res, Ls, length=200):
+    L_prev = 0
+    for L_i in Ls[:-1]:
+        idx_res[L_prev+L_i:] += length
+        L_prev += L_i
+
+    return idx_res
+
+
+def pair_msa(sequences: Sequence[str], raw_inputs: RawInput) -> parsers.Msa:
+    unique_seqs = []
+    for seq in sequences:
+        if seq not in unique_seqs:
+            unique_seqs.append(seq)
+
+    seqs_cardinality = [0]*len(unique_seqs)
+    for seq in sequences:
+        seq_idx = unique_seqs.index(seq)
+        seqs_cardinality[seq_idx] += 1
+
+    unpaired_msas = []
+    for seq in unique_seqs:
+        unpaired_msas.append(raw_inputs[seq][0])
+
+    return pad_sequences(unpaired_msas, unique_seqs, seqs_cardinality)
+
+
+def pad_sequences(
+        a3m_lines: Sequence[str], query_sequences: Sequence[str],
+        query_cardinality: Sequence[int]) -> str:
+    _blank_seq = [
+        ('-' * len(seq))
+        for n, seq in enumerate(query_sequences)
+        for _ in range(query_cardinality[n])]
+
+    a3m_lines_combined = []
+    pos = 0
+    for n, seq in enumerate(query_sequences):
+        for j in range(0, query_cardinality[n]):
+            lines = a3m_lines[n].split('\n')
+            for a3m_line in lines:
+                if len(a3m_line) == 0:
+                    continue
+                if a3m_line.startswith('>'):
+                    a3m_lines_combined.append(a3m_line)
+                else:
+                    a3m_lines_combined.append(
+                        ''.join(_blank_seq[:pos] + [a3m_line] + _blank_seq[pos+1:]))
+            pos += 1
+
+    return '\n'.join(a3m_lines_combined)
+        
+            
 def getInputFeatures(
         sequences: Sequence[str],
         chain_features: MutableMapping[str, pipeline.FeatureDict],
         is_prokaryote: bool = False,
-        min_num_seq: int = 512
+        min_num_seq: int = 512,
+        use_multimer: bool = True,
         ) -> Union[pipeline.FeatureDict,
                    MutableMapping[str, pipeline.FeatureDict]]:
 
-    if len(sequences) == 1:
+    if len(sequences) == 1 or not use_multimer:
         return chain_features[protein.PDB_CHAIN_IDS[0]]
     else:
         all_chain_features = {}
