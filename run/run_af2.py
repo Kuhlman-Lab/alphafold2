@@ -389,7 +389,7 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
 
 if __name__ == '__main__':
     os.environ['TF_FORCE_UNITED_MEMORY'] = '1'
-    os.environ['XLA_PYTHON_CLIENT_MEM_FRACTION'] = '2.0'
+    os.environ['XLA_PYTHON_CLIENT_MEM_FRACTION'] = '.90'
     os.environ['TF_XLA_FLAGS'] = '--tf_xla_cpu_global_jit'
     
     af2()
