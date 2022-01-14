@@ -151,10 +151,10 @@ def getAF2Parser() -> FileArgumentParser:
 
     # Model Control Arguments
     parser.add_argument('--use_ptm',
-                         action='store_false',
+                         action='store_true',
                          help='Uses the pTM fine-tuned model parameters to '
                          'get PAE per structure. Disable to use the original '
-                         'model parameters. Default is True.')
+                         'model parameters. Default is False.')
 
     parser.add_argument('--no_multimer_models',
                         action='store_true',
