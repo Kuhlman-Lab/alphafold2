@@ -51,6 +51,55 @@ def plot_plddt(plddt, Ls=None, dpi=100, fig=True):
     return plt
 
 
+def get_chain_lengths(results_dict):
+    protein = results_dict['unrelaxed_protein']
+    chain_index = protein.chain_index
+    residue_index = protein.residue_index
+    
+    Ls = []
+    chain_idx = 0
+    for res_idx in range(len(chain_index)):
+        if chain_index[res_idx] == chain_idx:
+            if len(Ls) < chain_idx + 1:
+                Ls.append(0)
+        else:
+            Ls.append(0)
+            chain_idx += 1
+
+        Ls[chain_idx] += 1
+
+    # Double check that we didn't run a monomer model on a multimer.
+    if len(Ls) == 1:
+        # We ran a monomer.
+        if residue_index[-1] == len(residue_index):
+            pass
+        # We ran a multimer.
+        else:
+            # Create new container.
+            Ls = []
+
+            # Determine where chain breaks occur.
+            chain_breaks = []
+            adder = 0
+            x = iter(range(len(residue_index)))
+            for res_idx in range(len(residue_index)):
+                differ = abs(next(x) + 1 + adder - residue_index[res_idx])
+                if differ != 0:
+                    adder += differ
+                    chain_breaks.append(res_idx)
+
+            # Determine chain lengths.
+            remainder = len(residue_index)
+            for breaks in chain_breaks:
+                if remainder >= 0:
+                    Ls.append(breaks)
+                    remainder -= breaks
+            if remainder >= 0:
+                Ls.append(remainder)
+
+    return Ls
+
+
 if __name__ == '__main__':
 
     parser = ArgumentParser()
@@ -96,12 +145,16 @@ if __name__ == '__main__':
             pae_png = os.path.join(args.output_dir, file_stem + '_pae.png')
             plddt_png = os.path.join(args.output_dir, file_stem + '_plddt.png')
 
+            # Get chain lengths.
+            Ls = get_chain_lengths(result)
+            
+            
             # Plot pAEs.
-            pae_fig = plot_pae(result['pae_output'][0])
+            pae_fig = plot_pae(result['pae_output'][0], Ls)
             pae_fig.savefig(pae_png)
             
             # Plot pLDDTs.
-            plddt_fig = plot_plddt(result['plddt'])
+            plddt_fig = plot_plddt(result['plddt'], Ls)
             plddt_fig.savefig(plddt_png)
 
         
