@@ -1,0 +1,10 @@
+--input_dir inputs
+--output_dir outputs
+--params_dir /proj/kuhl_lab/alphafold/alphafold/data
+--compress_output
+--use_ptm
+--msa_mode single_sequence
+--num_models 1
+--max_recycle 1
+--save_timing
+--no_multimer_models
