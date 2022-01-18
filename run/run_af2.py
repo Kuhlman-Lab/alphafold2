@@ -56,7 +56,6 @@ def af2_init(proc_id: int, arg_file: str, lengths: Sequence[Union[str, Sequence[
             sequences.append(sequence)
 
     qm = QueryManager(
-        input_dir=args.input_dir,
         sequences=sequences,
         min_length=args.min_length,
         max_length=args.max_length,
@@ -180,10 +179,15 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
     # Set up timing dictionary.
     timings = {}
     t_all = time.time()
-    
+     
     # Parse queries.
+    if compiled_runner is None:
+        input_dir = args.input_dir
+    else:
+        input_dir = ''
+
     qm = QueryManager(
-        input_dir=args.input_dir,
+        input_dir=input_dir,
         sequences=sequences,
         min_length=args.min_length,
         max_length=args.max_length,

@@ -34,7 +34,7 @@ def generate_random_multimers(lengths: Sequence[int], num_seq: int, aalist=None)
 
     return seqs_list
 
-def test_distributor(mode: str = 'monomer'):
+def test_distributor(mode: str = 'monomer', arg_file: str = 'flags.txt'):
 
     n_workers = 2
     init_len = 25
@@ -44,7 +44,7 @@ def test_distributor(mode: str = 'monomer'):
     else:
         lengths = [[init_len, init_len]]
 
-    dist = Distributor(n_workers, af2_init, 'flags.txt', lengths, naive_fitness)
+    dist = Distributor(n_workers, af2_init, arg_file, lengths, naive_fitness)
 
     all_work = []
     all_results = []
@@ -68,8 +68,13 @@ def test_distributor(mode: str = 'monomer'):
 
 if __name__ == '__main__':
 
-    print('Monomer Test:')
-    test_distributor(mode='monomer')
+    arg_file = './testdata/flags.txt'
+
+    #print('Monomer Test:')
+    #test_distributor('monomer', arg_file)
 
     print('Multimer Test:')
-    test_distributor(mode='multimer')
+    test_distributor('multimer', arg_file)
+
+    #print('Multimer Gap Test:')
+    #test_distributor('monomer', arg_file)
