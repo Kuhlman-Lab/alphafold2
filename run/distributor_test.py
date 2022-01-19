@@ -5,38 +5,23 @@ import numpy as np
 import random
 from typing import Sequence
 
+from utils.query_utils import generate_random_sequences
+
+# List of 20 canonical amino acids.
 AA_LIST = ['A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L',
            'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'Y']
+
 
 def naive_fitness(result):
     return np.mean(result['plddt'])
 
 
-def generate_random_monomers(length: int, num_seq: int, aalist=None) -> Sequence[Sequence[str]]:
-    if aalist == None:
-        aalist = AA_LIST
+def test_distributor(
+        n_workers: int,
+        mode: str = 'monomer',
+        arg_file: str = 'flags.txt'):
 
-    return [[''.join(random.choices(aalist, k=length))] for _ in range(num_seq)]
-
-
-def generate_random_multimers(lengths: Sequence[int], num_seq: int, aalist=None) -> Sequence[Sequence[Sequence[str]]]:
-    if aalist == None:
-        aalist = AA_LIST
-
-    seqs_list = []
-    for _ in range(num_seq):
-        seqs = []
-        for length in lengths:
-            seq = ''.join(random.choices(aalist, k=length))
-            seqs.append(seq)
-
-        seqs_list.append([seqs])
-
-    return seqs_list
-
-def test_distributor(mode: str = 'monomer', arg_file: str = 'flags.txt'):
-
-    n_workers = 2
+    n_workers = n_workers
     init_len = 25
 
     if mode == 'monomer':
@@ -49,12 +34,9 @@ def test_distributor(mode: str = 'monomer', arg_file: str = 'flags.txt'):
     all_work = []
     all_results = []
     for _ in range(5):
-        if mode == 'monomer':
-            work_list = generate_random_monomers(lengths[0], 4)
-        else:
-            work_list = generate_random_multimers(lengths[0], 4)
-
+        work_list = generate_random_sequences(lengths, 2)
         results = dist.churn(work_list)
+        
         for seq in work_list:
             all_work.append(seq)
         for score in results:
@@ -70,11 +52,11 @@ if __name__ == '__main__':
 
     arg_file = './testdata/flags.txt'
 
-    #print('Monomer Test:')
-    #test_distributor('monomer', arg_file)
+    print('Monomer Test:')
+    test_distributor(2, 'monomer', arg_file)
 
     print('Multimer Test:')
-    test_distributor('multimer', arg_file)
+    test_distributor(2, 'multimer', arg_file)
 
     #print('Multimer Gap Test:')
     #test_distributor('monomer', arg_file)

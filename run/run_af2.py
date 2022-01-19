@@ -9,7 +9,7 @@ from typing import Sequence, Union, Optional
 from functools import partial
 
 # Update PATH.
-sys.path.append('~/anaconda3/envs/af2/lib/python3.7/site-packages')
+sys.path.append('~/.miniconda3/envs/af2/lib/python3.7/site-packages')
 sys.path.append('../content/alphafold')
 
 # Custom imports.
@@ -38,6 +38,7 @@ def af2_init(proc_id: int, arg_file: str, lengths: Sequence[Union[str, Sequence[
         getRawInputs, getChainFeatures, getInputFeatures)
     from setup import (getAF2Parser, QueryManager, getOutputDir)
     from model import (getModelNames, getModelRunner, predictStructure, getRandomSeeds)
+    from utils.query_utils import generate_random_sequences
 
     parser = getAF2Parser()
     args = parser.parse_args([f'@{arg_file}'])
@@ -45,15 +46,7 @@ def af2_init(proc_id: int, arg_file: str, lengths: Sequence[Union[str, Sequence[
     output_dir = getOutputDir(out_dir=args.output_dir)
 
     # Generate mock sequences
-    sequences = []
-    for protein in lengths:
-        if isinstance(protein, int):
-            sequences.append( ['A'*protein] )
-        elif isinstance(protein, list):
-            sequence = []
-            for chain in protein:
-                sequence.append( 'A'*chain )
-            sequences.append(sequence)
+    sequences = generate_random_sequences(lengths, 1)[0]
 
     qm = QueryManager(
         sequences=sequences,
