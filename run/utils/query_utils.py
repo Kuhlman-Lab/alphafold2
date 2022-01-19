@@ -4,6 +4,7 @@
 import os
 import csv
 import logging
+import random
 from typing import Sequence, Tuple, Union
 
 # AlphaFold imports.
@@ -22,6 +23,34 @@ MultimerQuery = Tuple[str, str, Sequence[str]]
 
 # (filename, [sequences])
 CleanQuery = Tuple[str, Sequence[str]]
+
+# List of 20 standard amino acids.
+AA_LIST = ['A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L',
+           'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'Y']
+
+def generate_random_sequences(
+        length: Sequence[Union[int, Sequence[int]]],
+        num_seq: int,
+        aalist: Sequence[str] = None) -> Sequence[Sequence[str]]:
+
+    if aalist == None:
+        aalist = AA_LIST
+
+    seqs_list = []
+    for _ in range(num_seq):
+        extra_list = []
+        seqs = []
+        for leng in length:
+            if isinstance(leng, int):
+                seqs.append(''.join(random.choices(aalist, k=leng)))
+            elif isinstance(leng, list):
+                for chain_length in leng:
+                    seq = ''.join(random.choices(aalist, k=chain_length))
+                    seqs.append(seq)
+        extra_list.append(seqs)
+        seqs_list.append(extra_list)
+        
+    return seqs_list
 
 
 def parse_fasta_files(files: Sequence[str]) -> Sequence[MonomerQuery]:
