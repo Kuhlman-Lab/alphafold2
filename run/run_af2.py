@@ -46,7 +46,8 @@ def af2_init(proc_id: int, arg_file: str, lengths: Sequence[Union[str, Sequence[
     output_dir = getOutputDir(out_dir=args.output_dir)
 
     # Generate mock sequences
-    sequences = generate_random_sequences(lengths, 1)[0]
+    sequences = generate_random_sequences(lengths, 1, aalist=['A'])[0]
+    #print('run_af2::af2_init:', sequences)
 
     qm = QueryManager(
         sequences=sequences,
@@ -56,13 +57,17 @@ def af2_init(proc_id: int, arg_file: str, lengths: Sequence[Union[str, Sequence[
     qm.parse_files()
     qm.parse_sequences()
     queries = qm.queries
+    #print('run_af2::af2_init:', queries)
     del qm
     
     raw_inputs = getRawInputs(
         queries=queries,
-        msa_mode=args.msa_mode,
-        use_templates=args.use_templates,
-        output_dir=output_dir)
+        msa_mode='single_sequence',
+        use_templates=False,
+        output_dir=output_dir,
+        design_run=args.design_run,
+        proc_id=proc_id)
+    #print('run_af2::af2_init:', raw_inputs)
 
     model_names = getModelNames(
         first_n_seqs=len(queries[0][1]),
@@ -198,7 +203,9 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
         queries=queries,
         msa_mode=args.msa_mode,
         use_templates=args.use_templates,
-        output_dir=output_dir)
+        output_dir=output_dir,
+        design_run=args.design_run,
+        proc_id=proc_id)
     timings['raw_inputs'] = time.time() - t_0
     logger.info(f'Raw inputs have been generated. Took '
                 f'{timings["raw_inputs"]:.2f} seconds.')

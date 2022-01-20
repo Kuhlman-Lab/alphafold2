@@ -33,8 +33,8 @@ def test_distributor(
 
     all_work = []
     all_results = []
-    for _ in range(5):
-        work_list = generate_random_sequences(lengths, 2)
+    for _ in range(2):
+        work_list = generate_random_sequences(lengths, 5)
         results = dist.churn(work_list)
         
         for seq in work_list:
@@ -49,8 +49,9 @@ def test_distributor(
 
 
 if __name__ == '__main__':
-
-    arg_file = './testdata/flags.txt'
+    
+    arg_file = './testdata/flags_longleaf.txt'
+    #arg_file = './testdata/flags.txt'
 
     print('Monomer Test:')
     test_distributor(2, 'monomer', arg_file)
