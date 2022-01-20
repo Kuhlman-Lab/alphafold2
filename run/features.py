@@ -12,6 +12,7 @@ import copy
 import numpy as np
 import pathlib
 import logging
+import shutil
 from alphafold.data import parsers
 from alphafold.data import pipeline
 from alphafold.data import pipeline_multimer
@@ -38,7 +39,9 @@ def getRawInputs(
         msa_mode: str,
         use_filter: bool = True,
         use_templates: bool = False,
-        output_dir: str = '') -> RawInput:
+        output_dir: str = '',
+        design_run: bool = False,
+        proc_id: Optional[int] = None) -> RawInput:
     """ Computes and gathers raw a3m lines and template paths for the list of 
         queries. 
     """
@@ -54,15 +57,30 @@ def getRawInputs(
             if seq not in unique_sequences:
                 unique_sequences.append(seq)
 
+    #print('features::getRawInputs:', unique_sequences)
+
     if msa_mode != 'single_sequence' and unique_sequences != []:
         use_env = True if msa_mode == 'MMseqs2-U+E' else False
 
+        if proc_id is not None:
+            prefix = f'{os.path.join(output_dir, "mmseqs2")}_{proc_id}'
+        else:
+            prefix = f'{os.path.join(output_dir, "mmseqs2")}'
+        print('features::getRawInputs:', prefix)
+
         a3m_lines, template_paths = runMMseqs2(
-            prefix=os.path.join(output_dir, 'mmseqs2'),
+            prefix=prefix,
             sequences=unique_sequences,
             use_env=use_env,
             use_filter=use_filter,
             use_templates=use_templates)
+        if design_run:
+            if use_filter:
+                mode = 'env' if use_env else 'all'
+            else:
+                mode = 'env-nofilter' if use_env else 'nofilter'
+            out_dir = f'{prefix}_{mode}'
+            shutil.rmtree(out_dir)
     else:
         a3m_lines = []
         template_paths = []
