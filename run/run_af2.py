@@ -254,8 +254,6 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
             sequences=sequences,
             raw_inputs=raw_inputs_from_sequence,
             use_templates=args.use_templates,
-            custom_msa_path=args.custom_msa_path,
-            custom_template_path=args.custom_template_path,
             use_multimer=not args.no_multimer_models)
 
         input_features = getInputFeatures(

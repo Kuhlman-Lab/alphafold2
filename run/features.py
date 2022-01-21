@@ -400,32 +400,42 @@ def getCustomMSADict(custom_msa_path: str) -> Dict[str, str]:
         if extension == 'a3m':
             with open(os.path.join(custom_msa_path, filename)) as f:
                 a3m_lines = f.read()
-
-            capture_sequence = False
+            
+            custom_msa_dict = {}
+            update_seq, seq = True, None
+            capture_seq = False
             for line in a3m_lines.splitlines():
-                line = line.strip()
-                if line.startswith('>'):
-                    capture_sequence = True # Found first description
-                    continue
-                elif not line:
-                    continue # Skip blank lines
-                if capture_sequence:
-                    sequence = line
-                    break
+                if len(line) > 0:
+                    if '\x00' in line:
+                        line = line.replace('\x00', '')
+                        update_seq = True
+                    if line.startswith('>') and update_seq:
+                        capture_seq = True
+                        update_seq = False
+                        header = line
+                        continue
+                    if capture_seq:
+                        seq = line.rstrip()
+                        capture_seq = False
+                        if seq not in custom_msa_dict:
+                            custom_msa_dict[seq] = [header]
+                    custom_msa_dict[seq].append(line)
+    
+    for seq in custom_msa_dict:
+        custom_msa_dict[seq] = '\n'.join(custom_msa_dict[seq])
 
-            if sequence in custom_msa_dict:
-                raise ValueError(
-                    f'Multiple custom MSAs found for the sequence the same '
-                    f'sequence: {sequence}. There can only be one custom MSA '
-                    f'per sequence.')
-            custom_msa_dict[sequence] = a3m_lines
+            #if sequence in custom_msa_dict:
+            #    raise ValueError(
+            #        f'Multiple custom MSAs found for the sequence the same '
+            #        f'sequence: {sequence}. There can only be one custom MSA '
+            #        f'per sequence.')
 
     if custom_msa_dict == {}:
         raise ValueError(
             f'No custom MSAs detected in {custom_msa_path}. Double-check the '
             f'path or no not provide the --custom_msa_path argument. Note that'
             f'custom MSAs must be in .a3m format')
-        
+    
     return custom_msa_dict
     
 
@@ -492,10 +502,7 @@ def getChainFeatures(
                 feature_dict.update(all_seq_features)
         
             # Get template features
-            if custom_template_path:
-                feature_dict.update(
-                    get_custom_template_features(custom_templates_path))
-            elif use_templates:
+            if use_templates:
                 new_raw_inputs = copy.deepcopy(raw_inputs[sequence])
                 a3m = new_raw_inputs[0]
                 template = new_raw_inputs[1]
