@@ -87,7 +87,7 @@ def getRawInputs(
             prefix = f'{os.path.join(output_dir, "mmseqs2")}_{proc_id}'
         else:
             prefix = f'{os.path.join(output_dir, "mmseqs2")}'
-        print('features::getRawInputs:', prefix)
+        #print('features::getRawInputs:', prefix)
 
         a3m_lines, template_paths = runMMseqs2(
             prefix=prefix,
