@@ -145,9 +145,7 @@ def getAF2Parser() -> FileArgumentParser:
     parser.add_argument('--custom_template_path',
                          type=str,
                          help='Path to directory containing custom .pdb files '
-                         'to be used as templates for AF2. Note that '
-                         'specifying this will cause the custom templates to '
-                         'be used for every query sequence!')
+                         'to be used as templates for AF2.')
 
     # Model Control Arguments
     parser.add_argument('--use_ptm',

@@ -39,6 +39,8 @@ def getRawInputs(
         msa_mode: str,
         use_filter: bool = True,
         use_templates: bool = False,
+        custom_msa_path: Optional[str] = None,
+        custom_template_path: Optional[str] = None,
         output_dir: str = '',
         design_run: bool = False,
         proc_id: Optional[int] = None) -> RawInput:
@@ -48,17 +50,36 @@ def getRawInputs(
     raw_inputs = {}
     
     # Gather unique sequences to run MMseqs2 in a batch.
-    unique_sequences = []
+    n, fasta_query = 101, ''
+    unique_sequences = {}
     for query in queries:
         filename = query[0]
         seqs = query[1]
-
+        
         for seq in seqs:
             if seq not in unique_sequences:
-                unique_sequences.append(seq)
+                fasta_query += f'>{n}\n{seq}\n'
+                unique_sequences[n] = seq
+                n += 1
 
-    #print('features::getRawInputs:', unique_sequences)
+    custom_templates = {}
+    if custom_template_path is not None:
+        custom_templates.update(
+            getCustomTemplateDict(fasta_query, custom_template_path))
+                
+    # If a custom msas provided, parse and keep track of them.
+    custom_msas = {}
+    if custom_msa_path is not None:
+        custom_msas.update(getCustomMSADict(custom_msa_path))
 
+    # If not using templates and custom MSA provided, remove sequence from
+    # MMseqs2 queue.
+    if not use_templates and custom_msas != {}:
+        for sequence in custom_msas:
+            if sequence in unique_sequences:
+                unique_sequences.remove(sequence)
+
+    # If we want MSAs or need templates, let's run MMseqs2.            
     if msa_mode != 'single_sequence' and unique_sequences != []:
         use_env = True if msa_mode == 'MMseqs2-U+E' else False
 
@@ -88,11 +109,34 @@ def getRawInputs(
             a3m_lines.append(f'>1\n{sequence}\n')
             template_paths.append(None)
 
-    # Store into dictionary.
+    # Store MMseqs2 output into dictionary.
     for a3m, templates in zip(a3m_lines, template_paths):
         sequence = a3m.splitlines()[1]
-        raw_inputs[sequence] = (a3m, templates)
+        raw_inputs[sequence] = (a3m, [templates])
 
+    # Update with potential custom MSAs.
+    for sequence in custom_msas:
+        if sequence in raw_inputs:
+            templates = raw_inputs[sequence][1]
+            raw_inputs[sequence] = (custom_msas[sequence], templates)
+        else:
+            raw_inputs.update({sequence: (custom_msas[sequence], None)})
+
+    # Update with potential custom templates.
+    for sequence in custom_templates:
+        if sequence in raw_inputs:
+            a3m_lines = raw_inputs[sequence][0]
+            templates = raw_inputs[sequence][1]
+            if templates is None:
+                templates = custom_templates[sequence]
+            elif isinstance(templates, list):
+                templates = custom_templates[sequence] + templates
+            else:
+                raise ValueError(f'Something fishy is going on... for sequence '
+                                 f'{sequence} the MMseqs2 templates are '
+                                 f'{templates}.')
+            raw_inputs[sequence] = (a3m_lines, templates)
+        
     return raw_inputs
 
 
@@ -269,15 +313,91 @@ def runMMseqs2(
         return (a3m_lines, template_paths)
 
 
+def getCustomTemplateDict(
+        query_fasta: str, custom_template_path: str) -> Dict[str, str]:
+
+    custom_template_dict = {}
+
+    onlyfiles = [f for f in os.listdir(custom_template_path)
+                 if os.path.isfile(os.path.join(custom_template_path, f))]
+    for filename in onlyfiles:
+        extension = filename.split('.')[-1]
+        if extension == 'pdb':
+            with open(os.path.join(custom_template_path, filename)) as f:
+                pdb_lines = f.read()
+
+            protein_obj = protein.from_pdb_string(pdb_lines)
+            int_seq = protein_obj.aatype
+            seq = ''
+            for int_res in int_seq:
+                seq += residue_constants.restypes_with_x[int_res]
+
+            custom_template_dict.update({seq: filename})
+
+    if custom_template_dict == {}:
+        raise ValueError(f'No .pdb files were detected in the custom template '
+                         f'path: {custom_template_path}.')
+            
+    n, template_fasta = 1, ''
+    template_idx_2_file = {}
+    for seq in custom_template_dict:
+        template_fasta += f'>template_{n}\n{seq}\n'
+        template_idx_2_file.update({f'template_{n}': custom_template_dict[seq]})
+        n += 1
+
+    query_idx_2_seq = {}
+    new_idx = False
+    for line in query_fasta.splitlines():
+        if line.startswith('>'):
+            query_idx = line[1:]
+            new_idx = True
+        elif not line:
+            continue
+        else:
+            if new_idx:
+                query_idx_2_seq.update({query_idx: line})
+                new_idx = False
+
+    os.mkdirs('tmp', exist_ok=True)
+
+    query_path = os.path.join('tmp', 'query.fasta')
+    with open(query_path, 'w') as f:
+        f.write(query_fasta)
+    template_path = os.path.join('tmp', 'template.fasta')
+    with open(template_path, 'w') as f:
+        f.write(template_fasta)
+    aln_path = os.path.join('tmp', 'alnResult.m8')
+    os.system(f'mmseqs easy-search {query_path} {template_path} {aln_path} tmp')
+
+    templates = {}
+    with open(aln_path, 'r') as f:
+        for line in f:
+            p = line.rstrip().split()
+            query_idx, template_idx = p[0], p[1]
+            query_idx = int(query_idx)
+            if query_idx not in templates:
+                templates[query_idx] = []
+            templates[query_idx].append(template_idx)
+
+    custom_template_dict = {}
+    for query, template_list in templates.items():
+        template_files = []
+        for template in template_list:
+            template_files.append(template_idx_2_file[template])
+        custom_template_dict.update({query_idx_2_seq[query]: template_files})
+
+    return custom_template_dict
+        
+            
 def getCustomMSADict(custom_msa_path: str) -> Dict[str, str]:
 
     custom_msa_dict = {}
     
     onlyfiles = [f for f in os.listdir(custom_msa_path)
                  if os.path.isfile(os.path.join(custom_msa_path, f))]
-    for filename in onlyfile:
+    for filename in onlyfiles:
         extension = filename.split('.')[-1]
-        if extension == '.a3m':
+        if extension == 'a3m':
             with open(os.path.join(custom_msa_path, filename)) as f:
                 a3m_lines = f.read()
 
@@ -303,27 +423,22 @@ def getCustomMSADict(custom_msa_path: str) -> Dict[str, str]:
     if custom_msa_dict == {}:
         raise ValueError(
             f'No custom MSAs detected in {custom_msa_path}. Double-check the '
-            f'path or no not provide the --custom_msa_path argument.')
+            f'path or no not provide the --custom_msa_path argument. Note that'
+            f'custom MSAs must be in .a3m format')
         
     return custom_msa_dict
     
 
 def getMSA(
         sequence: str,
-        raw_inputs_from_sequence: Optional[RawInput] = None,
-        custom_a3m_lines: Optional[str] = None) -> parsers.Msa:
+        raw_inputs_from_sequence: RawInput) -> parsers.Msa:
 
     # Get single-chain MSA.
-    if custom_a3m_lines:
-        a3m_lines = custom_a3m_lines
-    elif raw_inputs_from_sequence:
-        raw_inputs = copy.deepcopy(raw_inputs_from_sequence[sequence])
-        a3m_lines = raw_inputs[0]
-        template_paths = raw_inputs[1]
+    raw_inputs = copy.deepcopy(raw_inputs_from_sequence[sequence])
+    a3m_lines = raw_inputs[0]
+    template_paths = raw_inputs[1]
 
-    single_chain_msa = [parsers.parse_a3m(a3m_string=a3m_lines)]
-
-    return single_chain_msa
+    return [parsers.parse_a3m(a3m_string=a3m_lines)]
 
 
 def getUniprotMSA(
@@ -348,15 +463,8 @@ def getChainFeatures(
         sequences: Sequence[str],
         raw_inputs: RawInput,
         use_templates: bool = False,
-        custom_msa_path: Optional[str] = None,
-        custom_template_path: Optional[str] = None,
         use_multimer = True) -> MutableMapping[str, pipeline.FeatureDict]:
     features_for_chain = {}
-
-    if custom_msa_path:
-        custom_msa_dict = getCustomMSADict(custom_msa_path)
-    else:
-        custom_msa_dict = {}
 
     if len(sequences) == 1 or use_multimer:
         for sequence_idx, sequence in enumerate(sequences):
@@ -366,13 +474,9 @@ def getChainFeatures(
                 sequence=sequence, description='query', num_res=len(sequence)))
 
             # Get MSA features
-            if sequence in custom_msa_dict:
-                msa = getMSA(
-                    sequence=sequence, custom_a3m_lines=custom_msa_dict[sequence])
-            else:
-                msa = getMSA(
-                    sequence=sequence, raw_inputs_from_sequence=raw_inputs)
-                feature_dict.update(pipeline.make_msa_features(msas=msa))
+            msa = getMSA(
+                sequence=sequence, raw_inputs_from_sequence=raw_inputs)
+            feature_dict.update(pipeline.make_msa_features(msas=msa))
 
             if len(set(sequences)) > 1:
                 uniprot_msa = getUniprotMSA(
