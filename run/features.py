@@ -105,14 +105,14 @@ def getRawInputs(
     else:
         a3m_lines = []
         template_paths = []
-        for sequence in unique_sequences:
-            a3m_lines.append(f'>1\n{sequence}\n')
+        for idx in unique_sequences:
+            a3m_lines.append(f'>1\n{unique_sequences[idx]}\n')
             template_paths.append(None)
 
     # Store MMseqs2 output into dictionary.
     for a3m, templates in zip(a3m_lines, template_paths):
         sequence = a3m.splitlines()[1]
-        raw_inputs[sequence] = (a3m, [templates])
+        raw_inputs[sequence] = (a3m, templates)
 
     # Update with potential custom MSAs.
     for sequence in custom_msas:
