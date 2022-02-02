@@ -50,22 +50,20 @@ def getRawInputs(
     raw_inputs = {}
     
     # Gather unique sequences to run MMseqs2 in a batch.
-    n, fasta_query = 101, ''
-    unique_sequences = {}
+    unique_sequences = []
     for query in queries:
         filename = query[0]
         seqs = query[1]
         
         for seq in seqs:
             if seq not in unique_sequences:
-                fasta_query += f'>{n}\n{seq}\n'
-                unique_sequences[n] = seq
-                n += 1
+                unique_sequences.append(seq)
 
+    # CUSTOM TEMPLATES ARE A WORK IN PROGRESS!
     custom_templates = {}
-    if custom_template_path is not None:
-        custom_templates.update(
-            getCustomTemplateDict(fasta_query, custom_template_path))
+    #if custom_template_path is not None:
+        #custom_templates.update(
+            #getCustomTemplateDict(fasta_query, custom_template_path))
                 
     # If a custom msas provided, parse and keep track of them.
     custom_msas = {}
@@ -88,7 +86,6 @@ def getRawInputs(
         else:
             prefix = f'{os.path.join(output_dir, "mmseqs2")}'
         #print('features::getRawInputs:', prefix)
-
         a3m_lines, template_paths = runMMseqs2(
             prefix=prefix,
             sequences=unique_sequences,
@@ -105,8 +102,8 @@ def getRawInputs(
     else:
         a3m_lines = []
         template_paths = []
-        for idx in unique_sequences:
-            a3m_lines.append(f'>1\n{unique_sequences[idx]}\n')
+        for seq in unique_sequences:
+            a3m_lines.append(f'>1\n{seq}\n')
             template_paths.append(None)
 
     # Store MMseqs2 output into dictionary.
@@ -147,25 +144,27 @@ def runMMseqs2(
         use_filter: bool = True,
         use_templates: bool = False,
         num_templates: int = 20,
+        use_pairing: bool = False,
         host_url: str = 'https://a3m.mmseqs.com'
         ) -> Tuple[Sequence[str], Sequence[Optional[str]]]:
     """ Computes MSAs and templates by querying MMseqs2 API. """
 
-    def submit(seqs: Sequence[str], mode: str, N: int) -> Dict[str, str]:
+    submission_endpoint = 'ticket/pair' if use_pairing else 'ticket/msa'
+    
+    def submit(seqs: Sequence[str], mode: str, N=101) -> Dict[str, str]:
         """ Submits a query of sequences to MMseqs2 API. """
 
-        # Make query from list of sequences.
         n, query = N, ''
         for seq in seqs:
             query += f'>{n}\n{seq}\n'
             n += 1
 
-        res = requests.post(f'{host_url}/ticket/msa',
+        res = requests.post(f'{host_url}/{submission_endpoint}',
                             data={'q': query, 'mode': mode})
         try:
             out = res.json()
         except ValueError:
-            out = {'status': 'UNKNOWN'}
+            out = {'status': 'ERROR'}
 
         return out
 
@@ -175,7 +174,7 @@ def runMMseqs2(
         try:
             out = res.json()
         except ValueError:
-            out = {'status': 'UNKNOWN'}
+            out = {'status': 'ERROR'}
 
         return out
 
@@ -184,10 +183,10 @@ def runMMseqs2(
         res = requests.get(f'{host_url}/result/download/{ID}')
         with open(path, 'wb') as out:
             out.write(res.content)
-    
+
     # Make input sequence a list if not already.
     sequences = [sequences] if isinstance(sequences, str) else sequences
-
+            
     # Set the mode for MMseqs2.
     if use_filter:
         mode = 'env' if use_env else 'all'
@@ -201,7 +200,8 @@ def runMMseqs2(
     N, REDO = 101, True
 
     # Deduplicate and keep track of order.
-    unique_seqs = sorted(list(set(sequences)))
+    unique_seqs = []
+    [unique_seqs.append(seq) for seq in sequences if seq not in unique_seqs]
     Ms = [N + unique_seqs.index(seq) for seq in sequences]
 
     # Call MMseqs2 API.
@@ -214,6 +214,15 @@ def runMMseqs2(
                 time.sleep(5 + random.randint(0, 5))
                 out = submit(seqs=unique_seqs, mode=mode, N=N)
 
+            if out['status'] == 'ERROR':
+                raise Exception('MMseqs2 API is giving errors. Please confirm '
+                                'your input is a valid protein sequence. If '
+                                'error persists, please try again in an hour.')
+
+            if out['status'] == 'MAINTENANCE':
+                raise Exception('MMseqs2 API is undergoing maintenance. Please '
+                                'try again in a few minutes.')
+                
             # Wait for job to finish
             ID = out['id']
             while out['status'] in ['UNKNOWN', 'RUNNING', 'PENDING']:
@@ -232,7 +241,10 @@ def runMMseqs2(
         download(ID, tar_gz_file)
 
     # Get and extract a list of .a3m files.
-    a3m_files = [os.path.join(out_path, 'uniref.a3m')]
+    if use_pairing:
+        a3m_files = [os.path.join(out_path, 'pair.a3m')]
+    else:
+        a3m_files = [os.path.join(out_path, 'uniref.a3m')]
     if use_env:
         a3m_files.append(
             os.path.join(out_path, 'bfd.mgnify30.metaeuk30.smag30.a3m'))
