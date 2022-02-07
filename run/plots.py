@@ -133,6 +133,12 @@ if __name__ == '__main__':
     # Run through all saved metrics.
     for extension, file_list in files.items():
         for input_dir, filename in file_list:
+            # Skip the timings output if it exists.
+            if filename == 'timing.pbz2':
+                continue
+            elif filename == 'timing.pkl':
+                continue
+            
             full_filename = os.path.join(input_dir, filename)
             file_stem = ''.join(filename.split('.')[:-1])
         
