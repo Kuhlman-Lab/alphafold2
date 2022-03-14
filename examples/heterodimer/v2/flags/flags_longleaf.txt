@@ -5,6 +5,6 @@
 --use_templates
 --use_ptm
 --num_models 1
---num_seeds 3
+--num_seeds 1
 --max_recycle 1
 --save_timing
