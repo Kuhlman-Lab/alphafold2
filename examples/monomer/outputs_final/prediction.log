@@ -1,0 +1,39 @@
+INFO:absl:Starting the local TPU driver.
+INFO:absl:Unable to initialize backend 'tpu_driver': Not found: Unable to find driver in registry given worker: local://
+INFO:absl:Unable to initialize backend 'tpu': Invalid argument: TpuPlatform is not available.
+INFO:run_af2:Running JAX with 1 devices.
+INFO:run_af2:Queries have been parsed. 1 queries found.
+INFO:run_af2:Raw inputs have been generated. Took 9.69 seconds.
+INFO:absl:Launching subprocess "hhsearch -i /tmp/tmp7kbm_fs4/query.a3m -o /tmp/tmp7kbm_fs4/output.hhr -maxseq 1000000 -d outputs/mmseqs2_env/templates_101/pdb70"
+INFO:absl:Started HHsearch query
+INFO:absl:Finished HHsearch query in 2.068 seconds
+INFO:absl:hit 6bgn_J did not pass prefilter: Template is an exact subsequence of query with large coverage. Length ratio: 1.0.
+INFO:absl:Skipped invalid hit 6BGN_J 2-hydroxymuconate tautomerase (E.C.5.3.2.6); ISOMERASE; HET: NO3, GOL, 6Y5; 1.51A {Pseudomonas putida}, error: None, warning: None
+INFO:absl:Found an exact template match 2op8_A.
+INFO:absl:Found an exact template match 2opa_A.
+INFO:absl:Found an exact template match 4fdx_A.
+INFO:absl:Found an exact template match 4fdx_B.
+INFO:absl:Found an exact template match 3ry0_A.
+INFO:absl:Found an exact template match 3ry0_B.
+INFO:absl:Found an exact template match 4faz_C.
+INFO:absl:Found an exact template match 3ej3_B.
+INFO:absl:Found an exact template match 3ej3_L.
+INFO:absl:Found an exact template match 3ej9_D.
+INFO:absl:Found an exact template match 6ogm_D.
+INFO:absl:Found an exact template match 6ogm_J.
+INFO:absl:Found an exact template match 3abf_A.
+INFO:absl:Found an exact template match 2x4k_A.
+INFO:absl:Found an exact template match 2orm_A.
+INFO:absl:Found an exact template match 6vvn_A.
+INFO:absl:Found an exact template match 6vvn_B.
+INFO:absl:Found an exact template match 3m20_A.
+INFO:absl:Found an exact template match 3m20_C.
+INFO:absl:Found an exact template match 6vvn_A.
+INFO:run_af2:Features for query 0 have been generated. Took 4.080528259277344 seconds.
+INFO:run_af2:Obtained model runner for model_1_ptm.
+INFO:absl:Running predict with shape(feat) = {'aatype': (4, 50), 'residue_index': (4, 50), 'seq_length': (4,), 'template_aatype': (4, 4, 50), 'template_all_atom_masks': (4, 4, 50, 37), 'template_all_atom_positions': (4, 4, 50, 37, 3), 'template_sum_probs': (4, 4, 1), 'is_distillation': (4,), 'seq_mask': (4, 50), 'msa_mask': (4, 508, 50), 'msa_row_mask': (4, 508), 'random_crop_to_size_seed': (4, 2), 'template_mask': (4, 4), 'template_pseudo_beta': (4, 4, 50, 3), 'template_pseudo_beta_mask': (4, 4, 50), 'atom14_atom_exists': (4, 50, 14), 'residx_atom14_to_atom37': (4, 50, 14), 'residx_atom37_to_atom14': (4, 50, 37), 'atom37_atom_exists': (4, 50, 37), 'extra_msa': (4, 5120, 50), 'extra_msa_mask': (4, 5120, 50), 'extra_msa_row_mask': (4, 5120), 'bert_mask': (4, 508, 50), 'true_msa': (4, 508, 50), 'extra_has_deletion': (4, 5120, 50), 'extra_deletion_value': (4, 5120, 50), 'msa_feat': (4, 508, 50, 49), 'target_feat': (4, 50, 22)}
+INFO:absl:Output shape was {'distogram': {'bin_edges': (63,), 'logits': (50, 50, 64)}, 'experimentally_resolved': {'logits': (50, 37)}, 'masked_msa': {'logits': (508, 50, 23)}, 'predicted_aligned_error': (50, 50), 'predicted_lddt': {'logits': (50, 50)}, 'structure_module': {'final_atom_mask': (50, 37), 'final_atom_positions': (50, 37, 3)}, 'plddt': (50,), 'aligned_confidence_probs': (50, 50, 64), 'max_predicted_aligned_error': (), 'ptm': (), 'ranking_confidence': ()}
+INFO:run_af2:Structure prediction for model_1_ptm, seed 0 is completed. Took 207.8370816707611 seconds.
+INFO:run_af2:Unrelaxed protein pdb has been written.
+INFO:run_af2:Results have been pickled and compressed.
+INFO:run_af2:Overall prediction process took 236.0311517715454 seconds.
