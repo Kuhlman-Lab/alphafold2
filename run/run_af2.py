@@ -222,7 +222,8 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
         first_n_seqs=len(queries[0][1]),
         last_n_seqs=len(queries[-1][1]),
         use_ptm=args.use_ptm, num_models=args.num_models,
-        use_multimer=not args.no_multimer_models)
+        use_multimer=not args.no_multimer_models,
+        use_v1=args.use_multimer_v1)
 
     if args.use_amber:
         amber_relaxer = relax.AmberRelaxation(
