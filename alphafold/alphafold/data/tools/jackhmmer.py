@@ -164,7 +164,7 @@ class Jackhmmer:
     return raw_output
 
   def query(self,
-            input_fasta_path: str
+            input_fasta_path: str,
             max_sequences: Optional[int] = None) -> Sequence[Mapping[str, Any]]:
     """Queries the database using Jackhmmer."""
     if self.num_streamed_chunks is None:
