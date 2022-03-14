@@ -4,30 +4,12 @@ INFO:absl:Unable to initialize backend 'tpu': Invalid argument: TpuPlatform is n
 INFO:run_af2:Running JAX with 1 devices.
 WARNING:query_utils:Inferring oligomeric state from sequences provided in sequences.csv.
 INFO:run_af2:Queries have been parsed. 1 queries found.
-INFO:run_af2:Raw inputs have been generated. Took 3.06 seconds.
-INFO:run_af2:Features for query 0 have been generated. Took 0.5449681282043457 seconds.
-INFO:run_af2:Obtained model runner for model_1_ptm.
-INFO:absl:Starting the local TPU driver.
-INFO:absl:Unable to initialize backend 'tpu_driver': Not found: Unable to find driver in registry given worker: local://
-INFO:absl:Unable to initialize backend 'tpu': Invalid argument: TpuPlatform is not available.
-INFO:run_af2:Running JAX with 1 devices.
-WARNING:query_utils:Inferring oligomeric state from sequences provided in sequences.csv.
-INFO:run_af2:Queries have been parsed. 1 queries found.
-INFO:run_af2:Raw inputs have been generated. Took 0.01 seconds.
-INFO:run_af2:Features for query 0 have been generated. Took 0.5375635623931885 seconds.
-INFO:run_af2:Obtained model runner for model_1_ptm.
-INFO:absl:Starting the local TPU driver.
-INFO:absl:Unable to initialize backend 'tpu_driver': Not found: Unable to find driver in registry given worker: local://
-INFO:absl:Unable to initialize backend 'tpu': Invalid argument: TpuPlatform is not available.
-INFO:run_af2:Running JAX with 1 devices.
-WARNING:query_utils:Inferring oligomeric state from sequences provided in sequences.csv.
-INFO:run_af2:Queries have been parsed. 1 queries found.
-INFO:run_af2:Raw inputs have been generated. Took 0.01 seconds.
-INFO:run_af2:Features for query 0 have been generated. Took 0.5350158214569092 seconds.
+INFO:run_af2:Raw inputs have been generated. Took 7.71 seconds.
+INFO:run_af2:Features for query 0 have been generated. Took 0.6060097217559814 seconds.
 INFO:run_af2:Obtained model runner for model_1_ptm.
 INFO:absl:Running predict with shape(feat) = {'aatype': (4, 100), 'residue_index': (4, 100), 'seq_length': (4,), 'template_aatype': (4, 4, 100), 'template_all_atom_masks': (4, 4, 100, 37), 'template_all_atom_positions': (4, 4, 100, 37, 3), 'template_sum_probs': (4, 4, 1), 'is_distillation': (4,), 'seq_mask': (4, 100), 'msa_mask': (4, 508, 100), 'msa_row_mask': (4, 508), 'random_crop_to_size_seed': (4, 2), 'template_mask': (4, 4), 'template_pseudo_beta': (4, 4, 100, 3), 'template_pseudo_beta_mask': (4, 4, 100), 'atom14_atom_exists': (4, 100, 14), 'residx_atom14_to_atom37': (4, 100, 14), 'residx_atom37_to_atom14': (4, 100, 37), 'atom37_atom_exists': (4, 100, 37), 'extra_msa': (4, 5120, 100), 'extra_msa_mask': (4, 5120, 100), 'extra_msa_row_mask': (4, 5120), 'bert_mask': (4, 508, 100), 'true_msa': (4, 508, 100), 'extra_has_deletion': (4, 5120, 100), 'extra_deletion_value': (4, 5120, 100), 'msa_feat': (4, 508, 100, 49), 'target_feat': (4, 100, 22)}
 INFO:absl:Output shape was {'distogram': {'bin_edges': (63,), 'logits': (100, 100, 64)}, 'experimentally_resolved': {'logits': (100, 37)}, 'masked_msa': {'logits': (508, 100, 23)}, 'predicted_aligned_error': (100, 100), 'predicted_lddt': {'logits': (100, 50)}, 'structure_module': {'final_atom_mask': (100, 37), 'final_atom_positions': (100, 37, 3)}, 'plddt': (100,), 'aligned_confidence_probs': (100, 100, 64), 'max_predicted_aligned_error': (), 'ptm': (), 'ranking_confidence': ()}
-INFO:run_af2:Structure prediction for model_1_ptm, seed 0 is completed. Took 180.81149244308472 seconds.
+INFO:run_af2:Structure prediction for model_1_ptm, seed 0 is completed. Took 174.90130972862244 seconds.
 INFO:run_af2:Unrelaxed protein pdb has been written.
 INFO:run_af2:Results have been pickled and compressed.
-INFO:run_af2:Overall prediction process took 186.84039735794067 seconds.
+INFO:run_af2:Overall prediction process took 184.8973422050476 seconds.
