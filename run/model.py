@@ -39,7 +39,7 @@ def getRandomSeeds(
 def getModelNames(
         first_n_seqs: int, last_n_seqs: int,
         use_ptm: bool = True, num_models: int = 5,
-        use_multimer = True) -> Tuple[str]:
+        use_multimer = True, use_v1: bool = False) -> Tuple[str]:
 
     include_monomer = False
     include_multimer = False
@@ -55,7 +55,11 @@ def getModelNames(
         monomer_models = config.MODEL_PRESETS[key]
         model_names += monomer_models[:num_models]
     if include_multimer:
-        multimer_models = config.MODEL_PRESETS['multimer']
+        if use_v1:
+            multimer_models = config.MODEL_PRESETS['multimer_v1']
+        else:
+            multimer_models = config.MODEL_PRESETS['multimer_v2']
+            
         model_names += multimer_models[:num_models]
 
     return model_names

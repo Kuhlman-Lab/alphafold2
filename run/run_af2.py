@@ -73,7 +73,8 @@ def af2_init(proc_id: int, arg_file: str, lengths: Sequence[Union[str, Sequence[
         first_n_seqs=len(queries[0][1]),
         last_n_seqs=len(queries[-1][1]),
         use_ptm=args.use_ptm, num_models=args.num_models,
-        use_multimer=not args.no_multimer_models)
+        use_multimer=not args.no_multimer_models,
+        use_v1=args.use_multimer_v1)
     
     query_features = []
     for query_idx, query in enumerate(queries):
