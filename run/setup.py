@@ -114,13 +114,6 @@ def getAF2Parser() -> FileArgumentParser:
                         'query UniRef database. single_sequence = Don\'t '
                         'generate an MSA.')
 
-    parser.add_argument('--is_prokaryote',
-                        action='store_true',
-                        help='Whether or not the queries are prokaryotic '
-                        'sequences or not. If the origins are eukaryotic or '
-                        'unknown, do not include this flag. CURRENTLY DOES NOT '
-                        'DO ANYTHING!.')
-
     parser.add_argument('--custom_msa_path',
                         type=str,
                         help='Path to directory containing custom .a3m files '

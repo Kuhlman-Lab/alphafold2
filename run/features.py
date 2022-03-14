@@ -625,7 +625,6 @@ def pad_sequences(
 def getInputFeatures(
         sequences: Sequence[str],
         chain_features: MutableMapping[str, pipeline.FeatureDict],
-        is_prokaryote: bool = False,
         min_num_seq: int = 512,
         use_multimer: bool = True,
         ) -> Union[pipeline.FeatureDict,
@@ -644,8 +643,7 @@ def getInputFeatures(
             all_chain_features)
 
         input_features = feature_processing.pair_and_merge(
-            all_chain_features=all_chain_features,
-            is_prokaryote=is_prokaryote)
+            all_chain_features=all_chain_features)
 
         # Pad MSA to avoid zero-size extra MSA.
         return pipeline_multimer.pad_msa(input_features,
