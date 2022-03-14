@@ -1,0 +1,24 @@
+diff --git a/alphafold/alphafold/model/mapping.py b/alphafold/alphafold/model/mapping.py
+index e6c0fd8..57ba6ce 100644
+--- a/alphafold/alphafold/model/mapping.py
++++ b/alphafold/alphafold/model/mapping.py
+@@ -15,6 +15,7 @@
+ """Specialized mapping functions."""
+ 
+ import functools
++import inspect
+ 
+ from typing import Any, Callable, Optional, Sequence, Union
+ 
+@@ -75,7 +76,10 @@ def sharded_map(
+   Returns:
+     function with smap applied.
+   """
+-  vmapped_fun = hk.vmap(fun, in_axes, out_axes)
++  if 'split_rng' in inspect.signature(hk.vmap).parameters:
++    vmapped_fun = hk.vmap(fun, in_axes, out_axes, split_rng=False)
++  else:
++    vmapped_fun = hk.vmap(fun, in_axes, out_axes)
+   return sharded_apply(vmapped_fun, shard_size, in_axes, out_axes)
+ 
+ 
