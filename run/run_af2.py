@@ -88,7 +88,6 @@ def af2_init(proc_id: int, arg_file: str, lengths: Sequence[Union[str, Sequence[
         input_features = getInputFeatures(
             sequences=sequences,
             chain_features=features_for_chain,
-            is_prokaryote=args.is_prokaryote,
             use_multimer=not args.no_multimer_models)
 
         query_features.append( (sequences, input_features) )
@@ -259,7 +258,6 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
         input_features = getInputFeatures(
             sequences=sequences,
             chain_features=features_for_chain,
-            is_prokaryote=args.is_prokaryote,
             use_multimer=not args.no_multimer_models)
         
         timings[f'features_{query_idx}'] = time.time() - t_0
