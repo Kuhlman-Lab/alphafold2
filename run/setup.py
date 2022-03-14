@@ -155,6 +155,12 @@ def getAF2Parser() -> FileArgumentParser:
                         'monomers, with a "gap" inserted for multimers. '
                         'Default is False.')
 
+    parser.add_argument('--use_multimer_v1',
+                        action='store_true',
+                        help='Overwrites the default method of using updated '
+                        'AF-Multimer v2 weights and uses the v1 weights. Note '
+                        'that large clashes may occur when using v1 weights.')
+
     parser.add_argument('--num_models',
                          default=5,
                          type=int,
