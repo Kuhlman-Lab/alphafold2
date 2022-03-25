@@ -1,4 +1,0 @@
-205c205
-<     chain_fasta_str = f'>{description}\n{sequence}\n'
----
->     chain_fasta_str = f'>chain_{chain_id}\n{sequence}\n'
