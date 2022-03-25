@@ -410,6 +410,7 @@ class TemplatePairStack(hk.Module):
 
   def __init__(self, config, global_config, name='template_pair_stack'):
     super().__init__(name=name)
+
     self.config = config
     self.global_config = global_config
 
