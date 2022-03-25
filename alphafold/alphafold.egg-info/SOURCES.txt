@@ -9,6 +9,7 @@ alphafold.egg-info/requires.txt
 alphafold.egg-info/top_level.txt
 alphafold/common/__init__.py
 alphafold/common/confidence.py
+alphafold/common/confidence_jax.py
 alphafold/common/protein.py
 alphafold/common/protein_test.py
 alphafold/common/residue_constants.py
