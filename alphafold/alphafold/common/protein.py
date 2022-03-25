@@ -20,6 +20,7 @@ from alphafold.common import residue_constants
 from Bio.PDB import PDBParser
 import numpy as np
 
+
 FeatureDict = Mapping[str, np.ndarray]
 ModelOutput = Mapping[str, Any]  # Is a nested dict.
 
@@ -262,7 +263,7 @@ def from_prediction(
     return arr[0] if remove_leading_feature_dimension else arr
 
   if 'asym_id' in features:
-    chain_index = _maybe_remove_leading_dim(features['asym_id'])-1
+    chain_index = _maybe_remove_leading_dim(features['asym_id'])
   else:
     chain_index = np.zeros_like(_maybe_remove_leading_dim(features['aatype']))
     

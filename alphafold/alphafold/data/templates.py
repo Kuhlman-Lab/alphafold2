@@ -712,7 +712,8 @@ def _process_single_hit(
         hit_pdb_code=hit_pdb_code,
         query_sequence=query_sequence,
         release_dates=release_dates,
-        release_date_cutoff=max_template_date)
+        release_date_cutoff=max_template_date,
+        max_subsequence_ratio=1.0)
   except PrefilterError as e:
     msg = f'hit {hit_pdb_code}_{hit_chain_id} did not pass prefilter: {str(e)}'
     logging.info(msg)
