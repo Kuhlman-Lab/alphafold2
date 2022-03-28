@@ -74,7 +74,7 @@ def getModelRunner(
     cfg.model.stop_at_score = float(stop_at_score)
     cfg.model.stop_at_score_ranker = rank_by
     
-    if 'monomer' in model_name:
+    if '_ptm' in model_name:
         cfg.data.common.num_recycle = num_recycle
         cfg.data.eval.num_ensemble = num_ensemble
     elif 'multimer' in model_name:
@@ -94,7 +94,7 @@ def predictStructure(
         run_multimer: bool,
         random_seed: int = random.randrange(sys.maxsize)
         ) -> Dict[str, np.ndarray]:
-
+    
     processed_feature_dict = model_runner.process_features(
         feature_dict, random_seed=random_seed)
 
