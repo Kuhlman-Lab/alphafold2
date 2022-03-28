@@ -67,11 +67,13 @@ def getModelNames(
 
 def getModelRunner(
         model_name: str, num_ensemble: int = 1, is_training: bool = False,
-        num_recycle: int = 3, recycle_tol: float = 0,
-        params_dir: str = '../alphafold/data') -> model.RunModel:
+        num_recycle: int = 3, recycle_tol: float = 0, stop_at_score: float = 100,
+        rank_by: str = 'plddt', params_dir: str = '../alphafold/data') -> model.RunModel:
 
     cfg = config.model_config(model_name)
-
+    cfg.model.stop_at_score = float(stop_at_score)
+    cfg.model.stop_at_score_ranker = rank_by
+    
     if 'monomer' in model_name:
         cfg.data.common.num_recycle = num_recycle
         cfg.data.eval.num_ensemble = num_ensemble
