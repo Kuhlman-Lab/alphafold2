@@ -73,6 +73,7 @@ def getModelRunner(
     cfg = config.model_config(model_name)
 
     if 'monomer' in model_name:
+        cfg.data.common.num_recycle = num_recycle
         cfg.data.eval.num_ensemble = num_ensemble
     elif 'multimer' in model_name:
         cfg.model.num_ensemble_eval = num_ensemble
