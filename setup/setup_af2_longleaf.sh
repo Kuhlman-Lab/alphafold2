@@ -38,6 +38,6 @@ else
     echo "XLA_FLAGS variable is already set for you."
 fi
 
-conda config --add envs_dirs /nas/longleaf/home/nzrandol/.conda/envs
+conda config --add envs_dirs /proj/kuhl_lab/alphafold/setup/conda_env
 
 echo "Set up script has completed. Make sure to 'source ~/.bashrc' before attempting to run AF2."
