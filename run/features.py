@@ -524,7 +524,20 @@ def getChainFeatures(
                         notebook_utils.empty_placeholder_template_features(
                             num_templates=0, num_res=len(sequence)))
                 else:
-                    feature_dict.update(make_template(sequence, a3m, template))
+                    temp_feats = make_template(sequence, a3m, template)
+                    
+                    empty_temp = False
+                    for k in temp_feats:
+                        if temp_feats[k].size == 0:
+                            empty_temp = True
+                            break
+                    
+                    if empty_temp:
+                        feature_dict.update(
+                            notebook_utils.empty_placeholder_template_features(
+                                num_templates=0, num_res=len(sequence)))
+                    else:
+                        feature_dict.update(temp_feats)
             else:
                 feature_dict.update(
                     notebook_utils.empty_placeholder_template_features(
