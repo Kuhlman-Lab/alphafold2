@@ -144,7 +144,7 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
     else:
         args = parser.parse_args(sys.argv[1:])
     del parser
-
+    
     output_dir = getOutputDir(out_dir=args.output_dir)
     
     # Set up logger
@@ -204,10 +204,12 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
         msa_mode=args.msa_mode,
         use_templates=args.use_templates,
         custom_msa_path=args.custom_msa_path,
+        insert_msa_gaps=args.insert_msa_gaps,
         custom_template_path=args.custom_template_path,
         output_dir=output_dir,
         design_run=args.design_run,
         proc_id=proc_id)
+        
     timings['raw_inputs'] = time.time() - t_0
     logger.info(f'Raw inputs have been generated. Took '
                 f'{timings["raw_inputs"]:.2f} seconds.')
