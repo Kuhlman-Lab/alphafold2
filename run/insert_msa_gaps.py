@@ -1,5 +1,5 @@
 import os
-from argparse import ArgumentParser
+import argparse
 from typing import Sequence
 
 def check_argument_validity(args: argparse.Namespace) -> Sequence[str]:
@@ -29,7 +29,7 @@ def check_argument_validity(args: argparse.Namespace) -> Sequence[str]:
 if __name__ == '__main__':
 
     # Set up parser
-    parser = ArgumentParser()
+    parser = argparse.ArgumentParser()
     parser.add_argument('--prepend',
                         action='store_true',
                         help='Prepends the desired gaps to the MSA. Default '
@@ -50,12 +50,16 @@ if __name__ == '__main__':
                         help='Number of residues to insert for additional chains. '
                         'Will be combined with other arguments if provided.')
     parser.add_argument('--msa_dir',
+                        default='.',
                         type=str,
                         help='Path to directory containing .a3m files (MSA files) '
-                        'that will be edited.')
+                        'that will be edited. Note that gapped versions of all '
+                        '.a3m files in this directory will be created.')
     parser.add_argument('--overwrite',
                         action='store_true',
-                        help='If included, original MSA files will be overwritten.')
+                        help='If included, original MSA files will be overwritten. '
+                        'Default is to write new files with the same filename but '
+                        'with "_gapped" appended.')
 
     # Get arguments and validate them
     args = parser.parse_args()
@@ -80,10 +84,10 @@ if __name__ == '__main__':
             if update:
                 # Add gap to front if prepending
                 if args.prepend:
-                    new_line = gaps + a3m_lines[i]
+                    new_line = gaps + a3m_lines[i].strip()
                 # Add gap to back if appending
                 else:
-                    new_line = a3m_lines[i] + gaps
+                    new_line = a3m_lines[i].strip() + gaps
                 new_lines.append(new_line)
                 update = False
             # If we're at a non-sequence line, check if we're at a header
@@ -91,7 +95,7 @@ if __name__ == '__main__':
                 # If at a header, mark the next line as a sequence line
                 if a3m_lines[i][0] == '>':
                     update = True
-                new_lines.append(a3m_lines[i])
+                new_lines.append(a3m_lines[i].strip())
             i += 1
 
         # Write the gapped MSA file, overwritting if necessary.
