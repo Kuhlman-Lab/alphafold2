@@ -1,0 +1,10 @@
+--input_dir inputs_gapped
+--output_dir outputs
+--params_dir /home/nzrandolph/git/alphafold/alphafold/data
+--custom_msa_path outputs_final/mmseqs2_env
+--insert_msa_gaps
+--compress_output
+--use_ptm
+--num_models 1
+--max_recycle 1
+--save_timing
