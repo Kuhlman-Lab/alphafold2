@@ -121,6 +121,12 @@ def getAF2Parser() -> FileArgumentParser:
                         'specifying this will cause the custom MSA to be used '
                         'for every appropriate query.')
 
+    parser.add_argument('--insert_msa_gaps',
+                        action='store_true',
+                        help='Couple this argument with "--custom_msa_path" to '
+                        'automatically add gaps to your custom MSA at the sites '
+                        'of discrepancy with your input sequence.')
+
     # Relaxation Arguments
     parser.add_argument('--use_amber',
                         action='store_true',

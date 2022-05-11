@@ -40,6 +40,7 @@ def getRawInputs(
         use_filter: bool = True,
         use_templates: bool = False,
         custom_msa_path: Optional[str] = None,
+        insert_msa_gaps: bool = False,
         custom_template_path: Optional[str] = None,
         output_dir: str = '',
         design_run: bool = False,
@@ -69,6 +70,40 @@ def getRawInputs(
     custom_msas = {}
     if custom_msa_path is not None:
         custom_msas.update(getCustomMSADict(custom_msa_path))
+
+        if insert_msa_gaps:
+            for msa_seq in custom_msas:
+                for input_seq in unique_sequences:
+                    if msa_seq in input_seq:
+                        n_gaps = len(input_seq) - len(msa_seq)
+                        if n_gaps > 0:
+                            prepend_append = input_seq.split(msa_seq)
+                            assert len(prepend_append) == 2, "Uh.. something weird at the insert gap spot."
+                            n_prepend = len(prepend_append[0])
+                            n_append = len(prepend_append[1])
+
+                            old_a3m = custom_msas[msa_seq]
+                            old_a3m_lines = old_a3m.split('\n')
+
+                            new_lines = []
+                            update = False
+                            first = True
+                            for old_line in old_a3m_lines:
+                                if update:
+                                    if first:
+                                        new_lines.append(input_seq)
+                                        update = False
+                                        first = False
+                                    else:
+                                        new_lines.append('-'*n_prepend + old_line + '-'*n_append)
+                                        update = False
+                                else:
+                                    if old_line[0] == '>':
+                                        update = True
+                                    new_lines.append(old_line)
+
+                            custom_msas.pop(msa_seq)
+                            custom_msas.update({input_seq: '\n'.join(new_lines)})
 
     # If not using templates and custom MSA provided, remove sequence from
     # MMseqs2 queue.
@@ -407,13 +442,15 @@ def getCustomMSADict(custom_msa_path: str) -> Dict[str, str]:
     
     onlyfiles = [f for f in os.listdir(custom_msa_path)
                  if os.path.isfile(os.path.join(custom_msa_path, f))]
+
+    custom_msa_dict = {}
+    
     for filename in onlyfiles:
         extension = filename.split('.')[-1]
         if extension == 'a3m':
             with open(os.path.join(custom_msa_path, filename)) as f:
                 a3m_lines = f.read()
             
-            custom_msa_dict = {}
             update_seq, seq = True, None
             capture_seq = False
             for line in a3m_lines.splitlines():
@@ -431,7 +468,11 @@ def getCustomMSADict(custom_msa_path: str) -> Dict[str, str]:
                         capture_seq = False
                         if seq not in custom_msa_dict:
                             custom_msa_dict[seq] = [header]
-                    custom_msa_dict[seq].append(line)
+                        else:
+                            continue
+
+                    if len(line) > 0:
+                        custom_msa_dict[seq].append(line)
     
     for seq in custom_msa_dict:
         custom_msa_dict[seq] = '\n'.join(custom_msa_dict[seq])
