@@ -85,7 +85,13 @@ def parse_csv_files(files: Sequence[str]) -> Sequence[MultimerQuery]:
             # summarized by the oligomer state.
             for row in reader:
                 oligomer = row[0]
-                sequences = row[1:]
+                og_sequences = row[1:]
+                sequences = []
+                for sequence in og_sequences:
+                    if '#' in sequence:
+                        sequences.append(sequence.split('#')[0])
+                    else:
+                        sequences.append(sequence)
 
                 query_list.append( (filename, oligomer, sequences) )
 
