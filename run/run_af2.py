@@ -13,8 +13,8 @@ sys.path.append('~/.miniconda3/envs/af2/lib/python3.7/site-packages')
 sys.path.append('../content/alphafold')
 
 # Custom imports.
-from setup import getAF2Parser, QueryManager, getOutputDir
-from utils.utils import compressed_pickle, get_hash, full_pickle
+from setup import getAF2Parser, QueryManager, getOutputDir, determine_weight_directory
+from utils.utils import compressed_pickle, full_pickle
 
 # Global constants.
 MAX_TEMPLATE_HITS = 20
@@ -37,11 +37,13 @@ def af2_init(proc_id: int, arg_file: str, lengths: Sequence[Union[str, Sequence[
     from features import (
         getRawInputs, getChainFeatures, getInputFeatures)
     from setup import (getAF2Parser, QueryManager, getOutputDir)
-    from model import (getModelNames, getModelRunner, predictStructure, getRandomSeeds)
+    from model import (getModelNames, getModelRunner, predictStructure)
     from utils.query_utils import generate_random_sequences
 
     parser = getAF2Parser()
     args = parser.parse_args([f'@{arg_file}'])
+    if not args.params_dir:
+        args.params_dir = determine_weight_directory()
 
     output_dir = getOutputDir(out_dir=args.output_dir)
 
@@ -144,6 +146,8 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
     else:
         args = parser.parse_args(sys.argv[1:])
     del parser
+    if not args.params_dir:
+        args.params_dir = determine_weight_directory()
     
     output_dir = getOutputDir(out_dir=args.output_dir)
     
@@ -167,7 +171,6 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
         getRawInputs, getChainFeatures, getInputFeatures)
     from model import (
         getRandomSeeds, getModelNames, getModelRunner, predictStructure)
-    from utils.query_utils import getFullSequence
 
     # Log devices
     devices = jax.local_devices()
