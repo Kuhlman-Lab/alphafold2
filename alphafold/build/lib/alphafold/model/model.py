@@ -166,15 +166,38 @@ class RunModel:
     self.init_params(feat)
     logging.info('Running predict with shape(feat) = %s',
                  tree.map_structure(lambda x: x.shape, feat))
-    result, recycles = self.apply(
-      self.params, jax.random.PRNGKey(random_seed), feat)
+                 
+    aatype = feat['aatype']
+    if self.multimer_mode:
+      num_recycles = self.config.model.num_recycle + 1
+      L = aatype.shape[0]
+    else:
+      num_recycles, L = aatype.shape[:2]
+    
+    result = {"prev": {'prev_msa_first_row': np.zeros([L, 256]),
+                       'prev_pair': np.zeros([L, L, 128]),
+                       'prev_pos': np.zeros([L, 37, 3])}}
 
-    # This block is to ensure benchmark timings are accurate. Some blocking is
-    # already happening when computing get_confidence_metrics, and this ensures
-    # all outputs are blocked on.
-    jax.tree_map(lambda x: x.block_until_ready(), result)
-    result.update(
-        get_confidence_metrics(result, multimer_mode=self.multimer_mode))
-    logging.info('Output shape was %s',
-                 tree.map_structure(lambda x: x.shape, result))
-    return result, recycles
+    r = 0
+    key = jax.random.PRNGKey(random_seed)
+    while r < num_recycles:
+      if self.multimer_mode:
+        sub_feat = feat
+        sub_feat["iter"] = np.array(r)
+      else:
+        sub_feat = jax.tree_map(lambda x: x[r, None], feat)
+
+      sub_feat['prev'] = result['prev']
+      result, _ = self.apply(self.params, key, sub_feat)
+      confidences = get_confidence_metrics(result, multimer_mode=self.multimer_mode)
+      if self.config.model.stop_at_score_ranker == 'plddt':
+        mean_score = (confidences['plddt'] * feat['seq_mask']).sum() / feat['seq_mask'].sum()
+      else:
+        mean_score = confidences['ptm'].mean()
+      result.update(confidences)
+      r += 1
+      if mean_score > self.config.model.stop_at_score:
+        break
+
+    logging.info('Output shape was %s', tree.map_structure(lambda x: x.shape, result))
+    return result, (r-1)
