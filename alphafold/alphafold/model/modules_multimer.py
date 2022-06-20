@@ -451,60 +451,20 @@ class AlphaFold(hk.Module):
           is_training=is_training,
           safe_key=safe_key)
 
-    prev = {}
-    emb_config = self.config.embeddings_and_evoformer
-    if emb_config.recycle_pos:
-      prev['prev_pos'] = jnp.zeros(
-        [num_res, residue_constants.atom_type_num, 3])
+    num_iter = c.num_recycle
+    def key_body(i, k):
+      k_ = jax.random.split(k[0])
+      o = jax.lax.cond(i==num_iter, lambda _:k[0], lambda _:k_[1], None)
+      return [k_[0], o]
+    k = safe_key.get()
+    safe_key = prng.SafeKey(jax.lax.fori_loop(0, batch.pop('iter')+1, key_body, [k, k])[1])
 
-    if emb_config.recycle_features:
-      prev['prev_msa_first_row'] = jnp.zeros(
-        [num_res, emb_config.msa_channel])
-      prev['prev_pair'] = jnp.zeros(
-        [num_res, num_res, emb_config.pair_channel])
-    
-    if self.config.num_recycle:
-      if 'num_iter_recycling' in batch:
-        # Training time: num_iter_recycling is in batch.
-        # Value for each ensemble batch is the same, so arbitrarily taking 0-th.
-        num_iter = batch['num_iter_recycling'][0]
-
-        # Add insurance that even when ensembling, we will not run more
-        # recyclings than the model is configured to run.
-        num_iter = jnp.minimum(num_iter, c.num_recycle)
-      else:
-        # Eval mode or tests: use the maximum number of iterations.
-        num_iter = c.num_recycle
-
-      def pw_dist(a):
-        # Computes the distance between all Ca atoms in a structure
-        a_norm = jnp.square(a).sum(-1)
-        return jnp.sqrt(jnp.abs(a_norm[:,None] + a_norm[None,:] - 2 * a @ a.T))
-        
-      def recycle_body(x):
-        n, tol, prev, safe_key = x
-        if c.resample_msa_in_recycling:
-          safe_key1, safe_key2 = safe_key.split()
-        else:
-          safe_key1, safe_key2 = safe_key.duplicate()
-        prev_ = get_prev(apply_network(prev=prev, safe_key=safe_key2))
-        ca, ca_ = prev['prev_pos'][:, 1, :], prev_['prev_pos'][:, 1, :]
-        # Computes average change in distance of Ca atoms across two structures
-        tol_ = jnp.sqrt(jnp.square(pw_dist(ca) - pw_dist(ca_)).mean())
-        return n+1, tol_, prev_, safe_key1
-
-      recycles, tol, prev, safe_key = hk.while_loop(
-        lambda x: ((x[0] < num_iter) & (x[1] > self.config.recycle_tol)),
-        recycle_body, (0, jnp.inf, prev, safe_key))
-    else:
-      (recycles, tol) = 0, jnp.inf
-
-    # Run extra iteration.
-    ret = apply_network(prev=prev, safe_key=safe_key)
+    ret = apply_network(prev=batch.pop('prev'), safe_key=safe_key)
+    ret['prev'] = get_prev(ret)
 
     if not return_representations:
       del ret['representations']
-    return ret, (recycles, tol)
+    return ret, None
 
 
 class EmbeddingsAndEvoformer(hk.Module):
