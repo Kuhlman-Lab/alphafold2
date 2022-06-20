@@ -13,12 +13,25 @@ class FileArgumentParser(argparse.ArgumentParser):
     """Overwrites default ArgumentParser to better handle flag files."""
 
     def convert_arg_line_to_args(self, arg_line: str) -> Sequence[str]:
-        # Read from files where each line contains a flag and its value, e.g.
-        # '--flag value'.
-        split_line = arg_line.split(' ')
+        """ Read from files where each line contains a flag and its value, e.g.
+        '--flag value'. Also safely ignores comments denotes with '#' and
+        empty lines.
+        """
 
+        # Remove any comments from the line
+        arg_line = arg_line.split('#')[0]
+
+        # Escapte if the line is empty
+        if not arg_line:
+            return None
+
+        # Separate flag and values
+        split_line = arg_line.strip().split(' ')
+
+        # If there is actually a value, return the flag value pair
         if len(split_line) > 1:
             return [split_line[0], ' '.join(split_line[1:])]
+        # Return just flag if there is no value
         else:
             return split_line
 
