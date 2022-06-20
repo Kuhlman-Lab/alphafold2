@@ -7,6 +7,7 @@
 #SBATCH -t 00-00:30:00
 #SBATCH --qos gpu_access
 #SBATCH --gres=gpu:1
+#SBATCH --constraint=rhel8
 #SBATCH --mail-type=END
 #SBATCH --mail-user=user@email.com
 
