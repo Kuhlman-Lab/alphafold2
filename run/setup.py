@@ -57,7 +57,7 @@ def getAF2Parser() -> FileArgumentParser:
                         'Default is ./prediction_{datetime}.')
 
     parser.add_argument('--params_dir',
-                        default='../alphafold/data/',
+                        default='',
                         type=str,
                         help='Path to the directory that holds the \'params\' '
                         'folder and all of the compressed parameter weights. '
@@ -333,3 +333,12 @@ class QueryManager(object):
         self.queries = query_utils.detect_duplicate_queries(
             query_list=self.queries)
         
+def determine_weight_directory() -> str:
+    longleaf = 'longleaf' in os.getcwd()
+
+    if longleaf:
+        weight_path = '/proj/kuhl_lab/alphafold/alphafold/data/'
+    else:
+        weight_path = '/home/nzrandolph/git/alphafold/alphafold/alphafold/data/'
+
+    return weight_path
