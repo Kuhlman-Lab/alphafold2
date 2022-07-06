@@ -170,7 +170,7 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
     from features import (
         getRawInputs, getChainFeatures, getInputFeatures)
     from model import (
-        getRandomSeeds, getModelNames, getModelRunner, predictStructure)
+        getRandomSeeds, predictStructure, getModelRunners)
 
     # Log devices
     devices = jax.local_devices()
@@ -222,14 +222,6 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
         random_seed=args.random_seed,
         num_seeds=args.num_seeds)
 
-    # Get model names.
-    model_names = getModelNames(
-        first_n_seqs=len(queries[0][1]),
-        last_n_seqs=len(queries[-1][1]),
-        use_ptm=args.use_ptm, num_models=args.num_models,
-        use_multimer=not args.no_multimer_models,
-        use_v1=args.use_multimer_v1)
-
     if args.use_amber:
         amber_relaxer = relax.AmberRelaxation(
             max_iterations=RELAX_MAX_ITERATIONS,
@@ -273,20 +265,25 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
 
         query_features.append( (prefix, sequences, input_features) )
 
-    results_list = []
+    # Get model names.
+    model_names_and_runners = getModelRunners(
+        first_n_seqs=len(queries[0][1]),
+        last_n_seqs=len(queries[-1][1]),
+        use_ptm=args.use_ptm, num_models=args.num_models,
+        use_multimer=not args.no_multimer_models,
+        use_templates=args.use_templates,
+        use_v1=args.use_multimer_v1,
+        num_ensemble=args.num_ensemble,
+        is_training=args.is_training,
+        num_recycle=args.max_recycle,
+        recycle_tol=args.recycle_tol,
+        params_dir=args.params_dir)
 
+    results_list = []
     # Predict structures.
-    for model_name in model_names:
+    for model_name, model_runner in model_names_and_runners:
         
-        if compiled_runner is None:
-            model_runner = getModelRunner(
-                model_name=model_name,
-                num_ensemble=args.num_ensemble,
-                is_training=args.is_training,
-                num_recycle=args.max_recycle,
-                recycle_tol=args.recycle_tol,
-                params_dir=args.params_dir)
-        else:
+        if compiled_runner is not None:
             model_runner = compiled_runner
         logger.info(f'Obtained model runner for {model_name}.')
 
