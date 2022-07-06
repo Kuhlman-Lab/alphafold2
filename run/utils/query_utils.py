@@ -254,6 +254,9 @@ def detect_duplicate_queries(
             if dupe == False:
                 clean_query_list.append(query)
 
+    # Sort the clean_query_list such that monomer queries appear first.
+    clean_query_list = sorted(clean_query_list, key=lambda x: len(x[1]))
+
     return clean_query_list
     
 
