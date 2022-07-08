@@ -6,7 +6,7 @@ input query parsing.
 import os
 import argparse
 import pathlib
-from typing import Sequence
+from typing import Sequence, Union
 from utils import query_utils
 
 class FileArgumentParser(argparse.ArgumentParser):
@@ -248,7 +248,7 @@ class QueryManager(object):
 
     def __init__(self,
             input_dir: str = None,
-            sequences: Sequence[Sequence[str]] = [],
+            sequences: Sequence[Union[str, Sequence[str]]] = [],
             min_length: int = 16,
             max_length: int = 2500,
             max_multimer_length: int = 2500) -> None:
