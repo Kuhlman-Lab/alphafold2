@@ -25,7 +25,7 @@ RELAX_EXCLUDE_RESIDUES = []
 RELAX_MAX_OUTER_ITERATIONS = 3
 
 
-def af2_init(proc_id: int, arg_file: str, lengths: Sequence[Union[str, Sequence[str]]], fitness_fxn):
+def af2_init(proc_id: int, arg_file: str, lengths: Sequence[Union[int, Sequence[int]]], fitness_fxn):
     print('initialization of process', proc_id)
     
     os.environ['TF_FORCE_UNITED_MEMORY'] = '1'
