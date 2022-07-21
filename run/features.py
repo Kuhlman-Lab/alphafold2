@@ -180,7 +180,7 @@ def runMMseqs2(
         use_templates: bool = False,
         num_templates: int = 20,
         use_pairing: bool = False,
-        host_url: str = 'https://a3m.mmseqs.com'
+        host_url: str = 'https://api.colabfold.com'
         ) -> Tuple[Sequence[str], Sequence[Optional[str]]]:
     """ Computes MSAs and templates by querying MMseqs2 API. """
 
@@ -310,8 +310,7 @@ def runMMseqs2(
                 TMPL_LINE = ','.join(TMPL[:num_templates])
                 # Obtain the .cif and data files for the templates
                 os.system(
-                    f'curl -s '
-                    f'https://a3m-templates.mmseqs.com/template/{TMPL_LINE} '
+                    f'curl -s -L {host_url}/template/{TMPL_LINE} '
                     f'| tar xzf - -C {TMPL_PATH}/')
                 # Rename data files
                 os.system(
