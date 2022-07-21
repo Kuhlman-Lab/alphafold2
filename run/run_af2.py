@@ -129,7 +129,7 @@ def af2_init(proc_id: int, arg_file: str, lengths: Sequence[Union[str, Sequence[
                 run_multimer=run_multimer)
             print(f'Model {model_name} took {time.time()-t} sec on GPU {proc_id}.')
 
-    af2_partial = partial(af2, arg_file=arg_file, proc_id=proc_id, fitness_fxn=fitness_fxn, compiled_runner=model_runner)
+    af2_partial = partial(af2, arg_file=arg_file, proc_id=proc_id, fitness_fxn=fitness_fxn, compiled_runners=[(model_names[-1], model_runner)])
 
     return af2_partial
     
@@ -138,7 +138,7 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
         arg_file: Optional[str] = None,
         proc_id: Optional[int] = None,
         fitness_fxn = None,
-        compiled_runner = None) -> Optional[Sequence[float]]:
+        compiled_runners = None) -> Optional[Sequence[float]]:
 
     parser = getAF2Parser()
     if arg_file != None:
@@ -182,7 +182,7 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
     t_all = time.time()
      
     # Parse queries.
-    if compiled_runner is None:
+    if compiled_runners is None:
         input_dir = args.input_dir
     else:
         input_dir = ''
@@ -198,6 +198,7 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
 
     queries = qm.queries
     logger.info(f'Queries have been parsed. {len(queries)} queries found.')
+    #print(queries)
     del qm
 
     # Get raw model inputs.
@@ -212,6 +213,7 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
         output_dir=output_dir,
         design_run=args.design_run,
         proc_id=proc_id)
+    #print(raw_inputs_from_sequence)
         
     timings['raw_inputs'] = time.time() - t_0
     logger.info(f'Raw inputs have been generated. Took '
@@ -264,27 +266,29 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
                     f'{timings[f"features_{query_idx}"]} seconds.')
 
         query_features.append( (prefix, sequences, input_features) )
+        
+    #print(query_features)
 
     # Get model names.
-    model_names_and_runners = getModelRunners(
-        first_n_seqs=len(queries[0][1]),
-        last_n_seqs=len(queries[-1][1]),
-        use_ptm=args.use_ptm, num_models=args.num_models,
-        use_multimer=not args.no_multimer_models,
-        use_templates=args.use_templates,
-        use_v1=args.use_multimer_v1,
-        num_ensemble=args.num_ensemble,
-        is_training=args.is_training,
-        num_recycle=args.max_recycle,
-        recycle_tol=args.recycle_tol,
-        params_dir=args.params_dir)
+    if not compiled_runners:
+        model_names_and_runners = getModelRunners(
+            first_n_seqs=len(queries[0][1]),
+            last_n_seqs=len(queries[-1][1]),
+            use_ptm=args.use_ptm, num_models=args.num_models,
+            use_multimer=not args.no_multimer_models,
+            use_templates=args.use_templates,
+            use_v1=args.use_multimer_v1,
+            num_ensemble=args.num_ensemble,
+            is_training=args.is_training,
+            num_recycle=args.max_recycle,
+            recycle_tol=args.recycle_tol,
+            params_dir=args.params_dir)
+    else:
+        model_names_and_runners = compiled_runners
 
     results_list = []
     # Predict structures.
     for model_name, model_runner in model_names_and_runners:
-        
-        if compiled_runner is not None:
-            model_runner = compiled_runner
         logger.info(f'Obtained model runner for {model_name}.')
 
         if 'multimer' in model_name:
