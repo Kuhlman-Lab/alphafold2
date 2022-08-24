@@ -70,8 +70,9 @@ def getRawInputs(
     custom_msas = {}
     if custom_msa_path is not None:
         custom_msas.update(getCustomMSADict(custom_msa_path))
-
+    
         if insert_msa_gaps:
+            new_custom_msas = {}
             for msa_seq in custom_msas:
                 for input_seq in unique_sequences:
                     if msa_seq in input_seq:
@@ -81,7 +82,6 @@ def getRawInputs(
                             assert len(prepend_append) == 2, "Uh.. something weird at the insert gap spot."
                             n_prepend = len(prepend_append[0])
                             n_append = len(prepend_append[1])
-
                             old_a3m = custom_msas[msa_seq]
                             old_a3m_lines = old_a3m.split('\n')
 
@@ -102,8 +102,9 @@ def getRawInputs(
                                         update = True
                                     new_lines.append(old_line)
 
-                            custom_msas.pop(msa_seq)
-                            custom_msas.update({input_seq: '\n'.join(new_lines)})
+                            new_custom_msas[input_seq] = '\n'.join(new_lines)
+                            
+            custom_msas = new_custom_msas
 
     # If not using templates and custom MSA provided, remove sequence from
     # MMseqs2 queue.
@@ -527,7 +528,7 @@ def getChainFeatures(
         use_templates: bool = False,
         use_multimer = True) -> MutableMapping[str, pipeline.FeatureDict]:
     features_for_chain = {}
-
+    #print(sequences)
     if len(sequences) == 1 or use_multimer:
         for sequence_idx, sequence in enumerate(sequences):
             feature_dict = {}
