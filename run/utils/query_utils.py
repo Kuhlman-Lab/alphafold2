@@ -182,7 +182,9 @@ def _clean_and_validate_single_query(
             f'sequences.')
 
     # Clean oligomer and validate shape
-    if oligomer == '':
+    if filename == '_INPUT_':
+        clean_oligomer = ':'.join(['1'] * len(clean_sequences))
+    elif oligomer == '':
         logger.warning(f'Inferring oligomeric state from sequences provided in '
                        f'{clean_filename}.')
         clean_oligomer = ':'.join(['1'] * len(clean_sequences))
