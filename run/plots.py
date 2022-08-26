@@ -128,7 +128,7 @@ if __name__ == '__main__':
 
     if len(files) == 0:
         raise ValueError(
-            f'No input files (.pkl or .pbz2) detected in {input_dir}.')
+            f'No input files (.pkl or .pbz2) detected in {args.input_dir}.')
     
     # Run through all saved metrics.
     for extension, file_list in files.items():
