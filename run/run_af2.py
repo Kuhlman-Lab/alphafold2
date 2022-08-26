@@ -317,8 +317,10 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
                 t_0 = time.time()
                 result = predictStructure(
                     model_runner=model_runner,
+                    model_name=model_name,
                     feature_dict=input_features,
                     run_multimer=run_multimer,
+                    use_templates=args.use_templates,
                     random_seed=seed)
                 results_list.append(result)
                 timings[f'predict_{model_name}_{seed_idx}'] = (time.time() - t_0)
