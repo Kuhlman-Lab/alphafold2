@@ -146,6 +146,7 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
     else:
         args = parser.parse_args(sys.argv[1:])
     del parser
+    
     if not args.params_dir:
         args.params_dir = determine_weight_directory()
     
