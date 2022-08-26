@@ -3,15 +3,16 @@
 from alphafold.model import config
 from alphafold.model import model
 from alphafold.model import data
+from alphafold.model.tf import shape_placeholders
 from alphafold.common import protein
 from alphafold.common import residue_constants
 from alphafold.data import pipeline
 
-
+import tensorflow as tf
 import random
 import sys
 import numpy as np
-from typing import Tuple, Sequence, Optional, Dict
+from typing import Tuple, Sequence, Optional, Dict, Mapping, Any
 
 # (filename, sequence)
 MonomerQuery = Tuple[str, str]
@@ -185,15 +186,92 @@ def getModelRunners(first_n_seqs: int, last_n_seqs: int, use_ptm: bool = True, n
     return sorted_monomers + sorted_multimers
 
 
+NUM_RES = shape_placeholders.NUM_RES
+NUM_MSA_SEQ = shape_placeholders.NUM_MSA_SEQ
+NUM_EXTRA_SEQ = shape_placeholders.NUM_EXTRA_SEQ
+NUM_TEMPLATES = shape_placeholders.NUM_TEMPLATES
+
+def make_fixed_size(protein: Mapping[str, Any], shape_schema, 
+                    msa_cluster_size: int, extra_msa_size: int, num_res: int, 
+                    num_templates: int = 0) -> model.features.FeatureDict:
+
+    """Guesss at the MSA and sequence dimensions to make fixed size."""
+
+    pad_size_map = {
+        NUM_RES: num_res,
+        NUM_MSA_SEQ: msa_cluster_size,
+        NUM_EXTRA_SEQ: extra_msa_size,
+        NUM_TEMPLATES: num_templates,
+    }
+
+    for k, v in protein.items():
+        # Don't transfer this to the accelerator.
+        if k == "extra_cluster_assignment":
+            continue
+        shape = list(v.shape)
+
+        schema = shape_schema[k]
+
+        assert len(shape) == len(schema), (
+            f"Rank mismatch between shape and shape schema for {k}: "
+            f"{shape} vs {schema}"
+        )
+        pad_size = [pad_size_map.get(s2, None) or s1 for (s1, s2) in zip(shape, schema)]
+        padding = [(0, p - tf.shape(v)[i]) for i, p in enumerate(pad_size)]
+
+        if padding:
+            protein[k] = tf.pad(v, padding, name=f"pad_to_fixed_{k}")
+            protein[k].set_shape(pad_size)
+
+    return {k: np.asarray(v) for k, v in protein.items()}
+
+
+def batch_input(input_features: model.features.FeatureDict, model_runner: model.RunModel, model_name: str,
+                crop_len: int, use_templates: bool) -> model.features.FeatureDict:
+
+    model_config = model_runner.config
+    eval_cfg = model_config.data.eval
+    crop_feats = {k: [None] + v for k, v in dict(eval_cfg.feat).items()}
+
+    max_msa_clusters = eval_cfg.max_msa_clusters
+    max_extra_msa = model_config.data.common.max_extra_msa
+    # template models
+    if (model_name == "model_1" or model_name == "model_2") and use_templates:
+        pad_msa_clusters = max_msa_clusters - eval_cfg.max_templates
+    else:
+        pad_msa_clusters = max_msa_clusters
+
+    max_msa_clusters = pad_msa_clusters
+
+    # let's try pad (num_res + X)
+    input_fix = make_fixed_size(input_features,
+                                crop_feats,
+                                msa_cluster_size=max_msa_clusters, # true_msa (4, 512, 68)
+                                extra_msa_size=max_extra_msa, # extra_msa (4, 5120, 68)
+                                num_res=crop_len, # aatype (4, 68)
+                                num_templates=4,
+    ) # template_mask (4, 4) second value
+    return input_fix
+
+
 def predictStructure(
         model_runner: model.RunModel,
+        model_name: str,
         feature_dict: pipeline.FeatureDict,
         run_multimer: bool,
-        random_seed: int = random.randrange(sys.maxsize)
+        use_templates: bool,
+        random_seed: int = random.randrange(sys.maxsize),
+        crop_size: Optional[Sequence[Optional[int]]] = None,
         ) -> Dict[str, np.ndarray]:
     
     processed_feature_dict = model_runner.process_features(
         feature_dict, random_seed=random_seed)
+
+    if not run_multimer:
+        seq_len = processed_feature_dict['aatype'].shape[1]
+
+    if crop_size and not run_multimer:
+        processed_feature_dict = batch_input(processed_feature_dict, model_runner, model_name, crop_size, use_templates)
 
     prediction, _ = model_runner.predict(
         processed_feature_dict, random_seed=random_seed)
@@ -207,6 +285,10 @@ def predictStructure(
     result['ranking_confidence'] = prediction['ranking_confidence']
     result['plddt'] = prediction['plddt']
     result['structure_module'] = prediction['structure_module']
+
+    if crop_size and not run_multimer:
+        result['plddt'] = result['plddt'][:seq_len]
+        result['pae_output'] = (result['pae_output'][0][:seq_len, :seq_len], result['pae_output'][1])
 
     b_factors = np.repeat(
         prediction['plddt'][:, None], residue_constants.atom_type_num, axis=-1)
