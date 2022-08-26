@@ -72,6 +72,7 @@ def getRawInputs(
         custom_msas.update(getCustomMSADict(custom_msa_path))
 
         if insert_msa_gaps:
+            new_custom_msas = {}
             for msa_seq in custom_msas:
                 for input_seq in unique_sequences:
                     if msa_seq in input_seq:
@@ -102,8 +103,7 @@ def getRawInputs(
                                         update = True
                                     new_lines.append(old_line)
 
-                            custom_msas.pop(msa_seq)
-                            custom_msas.update({input_seq: '\n'.join(new_lines)})
+                            custom_msas[input_seq] = '\n'.join(new_lines)
 
     # If not using templates and custom MSA provided, remove sequence from
     # MMseqs2 queue.

@@ -334,7 +334,7 @@ class QueryManager(object):
             query_list=self.queries)
         
 def determine_weight_directory() -> str:
-    longleaf = 'longleaf' in os.getcwd()
+    longleaf = 'longleaf' in os.path.expanduser('~')
 
     if longleaf:
         weight_path = '/proj/kuhl_lab/alphafold/alphafold/data/'
