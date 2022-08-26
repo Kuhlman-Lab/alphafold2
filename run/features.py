@@ -10,7 +10,6 @@ import random
 import tarfile
 import copy
 import numpy as np
-import pathlib
 import logging
 import shutil
 from alphafold.data import parsers
@@ -22,6 +21,7 @@ from alphafold.data import msa_pairing
 from alphafold.data.tools import hhsearch
 from alphafold.common import protein
 from alphafold.notebooks import notebook_utils
+
 from typing import Sequence, Optional, Dict, Tuple, MutableMapping, Union
 
 from utils import template_utils, utils
