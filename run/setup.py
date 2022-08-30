@@ -6,7 +6,7 @@ input query parsing.
 import os
 import argparse
 import pathlib
-from typing import Sequence, Union
+from typing import Sequence, Union, Optional
 from utils import query_utils
 
 class FileArgumentParser(argparse.ArgumentParser):
@@ -230,7 +230,7 @@ def getAF2Parser() -> FileArgumentParser:
     return parser
 
 
-def getOutputDir(out_dir: str) -> str:
+def getOutputDir(out_dir: str, suffix: Optional[str] = None) -> str:
     if out_dir == '':
         from datetime import datetime
 
@@ -239,6 +239,9 @@ def getOutputDir(out_dir: str) -> str:
 
         out_dir = 'prediction_' + dt
 
+    if suffix:
+        out_dir += suffix
+        
     os.makedirs(out_dir, exist_ok=True)
 
     return out_dir
