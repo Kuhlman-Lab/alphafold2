@@ -95,6 +95,13 @@ def getAF2Parser() -> FileArgumentParser:
                         type=int,
                         help='Minimum single chain length for an AF2 query. '
                         'Default is 1 residue.')
+                        
+    parser.add_argument('--max_pad_size',
+                        type=int,
+                        default=None,
+                        help='The length of the maximum sequence to be predicted.'
+                             'All sequences that are shorter than max_pad_size will'
+                             ' be padded up to that length, as to avoid model recompiling.')
 
     parser.add_argument('--max_length',
                         default=2500,

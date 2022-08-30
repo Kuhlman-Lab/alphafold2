@@ -202,6 +202,14 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
     #print(queries)
     del qm
 
+    # Input checking to make sure that sequences are shorter than the max_pad_size
+    if args.max_pad_size:
+        query_lens = [sum([len(s) for s in q[1]]) for q in queries]
+        max_query_len = max(query_lens)
+        if max_query_len > args.max_pad_size:
+            logger.warning('Length of the longest query is greater than the max_pad_size. Ignoring max_pad_size.')
+            args.max_pad_size = max_query_len
+
     # Get raw model inputs.
     t_0 = time.time()
     raw_inputs_from_sequence = getRawInputs(
@@ -321,6 +329,7 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
                     feature_dict=input_features,
                     run_multimer=run_multimer,
                     use_templates=args.use_templates,
+                    crop_size=args.max_pad_size,
                     random_seed=seed)
                 results_list.append(result)
                 timings[f'predict_{model_name}_{seed_idx}'] = (time.time() - t_0)
