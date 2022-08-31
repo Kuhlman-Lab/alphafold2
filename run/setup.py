@@ -98,7 +98,6 @@ def getAF2Parser() -> FileArgumentParser:
                         
     parser.add_argument('--max_pad_size',
                         type=int,
-                        default=None,
                         help='The length of the maximum sequence to be predicted.'
                              'All sequences that are shorter than max_pad_size will'
                              ' be padded up to that length, as to avoid model recompiling.')
