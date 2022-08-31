@@ -366,6 +366,12 @@ def predictStructure(
     result['plddt'] = prediction['plddt']
     result['structure_module'] = prediction['structure_module']
 
+    if 'ptm' in prediction:
+        result['ptm'] = prediction['ptm']
+
+    if 'iptm' in prediction:
+        result['iptm'] = prediction['iptm']
+
     if crop_size:
         result['plddt'] = result['plddt'][:seq_len]
         result['pae_output'] = (result['pae_output'][0][:seq_len, :seq_len], result['pae_output'][1])
