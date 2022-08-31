@@ -146,6 +146,14 @@ def getAF2Parser() -> FileArgumentParser:
                         'automatically add gaps to your custom MSA at the sites '
                         'of discrepancy with your input sequence.')
 
+    parser.add_argument('--update_msa_query_seq',
+                        default=1.00,
+                        type=float,
+                        help='A way to update custom MSAs with a similar-enough '
+                             'sequence. Specify the fraction of identical residues '
+                             'necessary in order to do the update. Note this '
+                             'requires length of the sequences to be the same.')
+
     # Relaxation Arguments
     parser.add_argument('--use_amber',
                         action='store_true',

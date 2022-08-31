@@ -42,6 +42,7 @@ def getRawInputs(
         use_templates: bool = False,
         custom_msa_path: Optional[str] = None,
         insert_msa_gaps: bool = False,
+        update_msa_query_seq: float = 1.00,
         custom_template_path: Optional[str] = None,
         output_dir: str = '',
         design_run: bool = False,
@@ -65,40 +66,35 @@ def getRawInputs(
     custom_msas = {}
     if custom_msa_path is not None:
         custom_msas.update(getCustomMSADict(custom_msa_path))
-    
-        if insert_msa_gaps:
-            new_custom_msas = {}
-            for msa_seq in custom_msas:
-                for input_seq in unique_sequences:
-                    if msa_seq in input_seq:
-                        n_gaps = len(input_seq) - len(msa_seq)
-                        if n_gaps > 0:
-                            prepend_append = input_seq.split(msa_seq)
-                            assert len(prepend_append) == 2, "Uh.. something weird at the insert gap spot."
-                            n_prepend = len(prepend_append[0])
-                            n_append = len(prepend_append[1])
-                            old_a3m = custom_msas[msa_seq]
-                            old_a3m_lines = old_a3m.split('\n')
 
-                            new_lines = []
-                            update = False
-                            first = True
-                            for old_line in old_a3m_lines:
-                                if update:
-                                    if first:
-                                        new_lines.append(input_seq)
-                                        update = False
-                                        first = False
-                                    else:
-                                        new_lines.append('-'*n_prepend + old_line + '-'*n_append)
-                                        update = False
-                                else:
-                                    if old_line[0] == '>':
-                                        update = True
-                                    new_lines.append(old_line)
-                            new_custom_msas[input_seq] = '\n'.join(new_lines)
-                            
-            custom_msas = new_custom_msas
+        new_custom_msas = {}
+        for msa_seq in custom_msas:
+            for input_seq in unique_sequences:
+ 
+                if msa_seq in input_seq and insert_msa_gaps:
+                    n_gaps = len(input_seq) - len(msa_seq)
+                    if n_gaps > 0:
+                        prepend_append = input_seq.split(msa_seq)
+                        assert len(prepend_append) == 2, "Uh.. something weird at the insert gap spot."
+                        n_prepend = len(prepend_append[0])
+                        n_append = len(prepend_append[1])
+                        old_a3m = custom_msas[msa_seq]
+                        old_a3m_lines = old_a3m.split('\n')
+
+                        new_lines = update_msa_lines(old_a3m_lines, input_seq, n_prepend, n_append)
+                        new_custom_msas[input_seq] = '\n'.join(new_lines)
+
+                elif len(msa_seq) == len(input_seq) and update_msa_query_seq:
+                    seq_sim = sum([s1 == s2 for s1, s2 in zip(list(msa_seq), list(input_seq))]) / len(msa_seq)
+
+                    if seq_sim > update_msa_query_seq:
+                        old_a3m = custom_msas[msa_seq]
+                        old_a3m_lines = old_a3m.split('\n')
+
+                        new_lines = update_msa_lines(old_a3m_lines, input_seq, 0, 0)
+                        new_custom_msas[input_seq] = '\n'.join(new_lines)
+                        
+        custom_msas.update(new_custom_msas)
 
     # If not using templates and custom MSA provided, remove sequence from
     # MMseqs2 queue.
@@ -155,6 +151,26 @@ def getRawInputs(
             raw_inputs[sequence] = (raw_inputs[sequence][0], custom_template_path)
         
     return raw_inputs
+
+
+def update_msa_lines(old_lines, query_seq, n_pre_gap, n_post_gap):
+    new_lines = []
+    update = False
+    first = True
+    for old_line in old_lines:
+        if update:
+            if first:
+                new_lines.append(query_seq)
+                update = False
+                first = False
+            else:
+                new_lines.append('-'*n_pre_gap + old_line + '-'*n_post_gap)
+                update = False
+        else:
+            if old_line[0] == '>':
+                update = True
+            new_lines.append(old_line)
+    return new_lines
 
 
 def runMMseqs2(
