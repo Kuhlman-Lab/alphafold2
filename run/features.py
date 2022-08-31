@@ -34,6 +34,7 @@ CleanQuery = Tuple[str, str]
 # {sequence: (raw MSA, raw templates)}
 RawInput = Dict[str, Tuple[str, str]]
 
+
 def getRawInputs(
         queries: Sequence[CleanQuery],
         msa_mode: str,
@@ -59,12 +60,6 @@ def getRawInputs(
         for seq in seqs:
             if seq not in unique_sequences:
                 unique_sequences.append(seq)
-
-    # CUSTOM TEMPLATES ARE A WORK IN PROGRESS!
-    custom_templates = {}
-    #if custom_template_path is not None:
-        #custom_templates.update(
-            #getCustomTemplateDict(fasta_query, custom_template_path))
                 
     # If a custom msas provided, parse and keep track of them.
     custom_msas = {}
@@ -155,19 +150,9 @@ def getRawInputs(
             raw_inputs.update({sequence: (custom_msas[sequence], None)})
 
     # Update with potential custom templates.
-    for sequence in custom_templates:
-        if sequence in raw_inputs:
-            a3m_lines = raw_inputs[sequence][0]
-            templates = raw_inputs[sequence][1]
-            if templates is None:
-                templates = custom_templates[sequence]
-            elif isinstance(templates, list):
-                templates = custom_templates[sequence] + templates
-            else:
-                raise ValueError(f'Something fishy is going on... for sequence '
-                                 f'{sequence} the MMseqs2 templates are '
-                                 f'{templates}.')
-            raw_inputs[sequence] = (a3m_lines, templates)
+    if custom_template_path:
+        for sequence in raw_inputs:
+            raw_inputs[sequence] = (raw_inputs[sequence][0], custom_template_path)
         
     return raw_inputs
 

@@ -15,6 +15,7 @@ sys.path.append('../content/alphafold')
 # Custom imports.
 from setup import getAF2Parser, QueryManager, getOutputDir, determine_weight_directory
 from utils.utils import compressed_pickle, full_pickle
+from utils.template_utils import mk_hhsearch_db
 
 # Global constants.
 MAX_TEMPLATE_HITS = 20
@@ -209,6 +210,10 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
         if max_query_len > args.max_pad_size:
             logger.warning('Length of the longest query is greater than the max_pad_size. Ignoring max_pad_size.')
             args.max_pad_size = max_query_len
+
+    # Create artificial hhsearch db for custom templates
+    if args.custom_template_path:
+        mk_hhsearch_db(args.custom_template_path)
 
     # Get raw model inputs.
     t_0 = time.time()
