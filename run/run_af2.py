@@ -213,7 +213,7 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
 
     # Create artificial hhsearch db for custom templates
     if args.custom_template_path:
-        mk_hhsearch_db(args.custom_template_path)
+        mk_hhsearch_db(args.custom_template_path, proc_id=proc_id)
 
     # Get raw model inputs.
     t_0 = time.time()
@@ -268,7 +268,8 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
             sequences=sequences,
             raw_inputs=raw_inputs_from_sequence,
             use_templates=args.use_templates,
-            use_multimer=not args.no_multimer_models)
+            use_multimer=not args.no_multimer_models,
+            proc_id=proc_id)
 
         input_features = getInputFeatures(
             sequences=sequences,

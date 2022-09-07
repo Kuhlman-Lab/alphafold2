@@ -386,7 +386,7 @@ def convert_pdb_to_mmcif(pdb_file: Path):
   cif_io.save(str(cif_file))
 
 
-def mk_hhsearch_db(template_dir: str):
+def mk_hhsearch_db(template_dir: str, proc_id: Optional[int] = None):
   template_path = Path(template_dir)
 
   cif_files = template_path.glob("*.cif")
@@ -401,12 +401,16 @@ def mk_hhsearch_db(template_dir: str):
   for f in pdb70_db_files:
     os.remove(f)
 
-  with open(template_path.joinpath("pdb70_a3m.ffdata"), "w") as a3m, open(
-    template_path.joinpath("pdb70_cs219.ffindex"), "w"
+  prefix = ''
+  if proc_id:
+    prefix = f'{proc_id}_'
+    
+  with open(template_path.joinpath(f"{prefix}pdb70_a3m.ffdata"), "w") as a3m, open(
+    template_path.joinpath(f"{prefix}pdb70_cs219.ffindex"), "w"
   ) as cs219_index, open(
-    template_path.joinpath("pdb70_a3m.ffindex"), "w"
+    template_path.joinpath(f"{prefix}pdb70_a3m.ffindex"), "w"
   ) as a3m_index, open(
-    template_path.joinpath("pdb70_cs219.ffdata"), "w"
+    template_path.joinpath(f"{prefix}pdb70_cs219.ffdata"), "w"
   ) as cs219:
 
     id = 1000000
