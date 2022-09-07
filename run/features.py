@@ -525,6 +525,7 @@ def getUniprotMSA(
 def getChainFeatures(
         sequences: Sequence[str],
         raw_inputs: RawInput,
+        proc_id = None,
         use_templates: bool = False,
         use_multimer = True) -> MutableMapping[str, pipeline.FeatureDict]:
     features_for_chain = {}
@@ -565,7 +566,7 @@ def getChainFeatures(
                         notebook_utils.empty_placeholder_template_features(
                             num_templates=0, num_res=len(sequence)))
                 else:
-                    temp_feats = make_template(sequence, a3m, template)
+                    temp_feats = make_template(sequence, a3m, template, proc_id)
                     
                     empty_temp = False
                     for k in temp_feats:
@@ -707,7 +708,8 @@ def getInputFeatures(
 def make_template(
         query_sequence: str,
         a3m_lines: Sequence[str],
-        template_paths: str):
+        template_paths: str,
+        proc_id = None):
 
     template_featurizer = template_utils.TemplateHitFeaturizer(
             mmcif_dir=template_paths,
@@ -717,9 +719,14 @@ def make_template(
             release_dates_path=None,
             obsolete_pdbs_path=None)
 
+    if proc_id:
+        databases = [f'{template_paths}/{proc_id}_pdb70']
+    else:
+        databases = [f'{template_paths}/pdb70']
+        
     hhsearch_pdb70_runner = hhsearch.HHSearch(
         binary_path='hhsearch',
-        databases=[f'{template_paths}/pdb70'])
+        databases=databases)
 
     hhsearch_result = hhsearch_pdb70_runner.query(a3m_lines)
     hhsearch_hits = parsers.parse_hhr(hhsearch_result)
