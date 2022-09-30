@@ -356,6 +356,6 @@ def determine_weight_directory() -> str:
     if longleaf:
         weight_path = '/proj/kuhl_lab/alphafold/alphafold/data/'
     else:
-        weight_path = '/home/nzrandolph/git/alphafold/alphafold/alphafold/data/'
+        weight_path = '/home/nzrandolph/git/alphafold/alphafold/data/'
 
     return weight_path
