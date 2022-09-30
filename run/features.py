@@ -96,6 +96,14 @@ def getRawInputs(
                         
         custom_msas.update(new_custom_msas)
 
+        # Make sure our custom msas only includes sequences that were inputted
+        final_custom_msas = {}
+        for seq in unique_sequences:
+            if seq in custom_msas:
+                final_custom_msas[seq] = custom_msas[seq]
+        custom_msas = final_custom_msas
+            
+
     # If not using templates and custom MSA provided, remove sequence from
     # MMseqs2 queue.
     if not use_templates and custom_msas != {}:
@@ -573,7 +581,7 @@ def getChainFeatures(
                         if temp_feats[k].size == 0:
                             empty_temp = True
                             break
-                    
+
                     if empty_temp:
                         feature_dict.update(
                             notebook_utils.empty_placeholder_template_features(
