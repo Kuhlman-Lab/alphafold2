@@ -91,7 +91,8 @@ def parse_csv_files(files: Sequence[str]) -> Sequence[MultimerQuery]:
                     if '#' in sequence:
                         sequences.append(sequence.split('#')[0])
                     else:
-                        sequences.append(sequence)
+                        if sequence:
+                            sequences.append(sequence)
 
                 query_list.append( (filename, oligomer, sequences) )
 
