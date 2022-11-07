@@ -4,7 +4,7 @@
 --compress_output
 --use_templates
 --use_ptm
---num_models 1
+--num_models 5
 --num_seeds 1
---max_recycle 1
+--max_recycle 3
 --save_timing
