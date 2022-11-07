@@ -23,9 +23,14 @@ def plot_ticks(Ls):
     plt.yticks(ticks, alphabet_list[:len(ticks)])
 
 
-def plot_pae(pae, Ls=None, dpi=100, fig=True):
+def plot_pae(pae, Ls=None, dpi=100, fig=True, ptm=None, iptm=None):
     if fig: plt.figure(figsize=(8,5), dpi=dpi)
-    plt.title('Predicted Aligned Error')
+    pae_title = 'Predicted Aligned Error.'
+    if ptm:
+        pae_title += f' ptm = {ptm:.3f}.'
+    if iptm:
+        pae_title += f' iptm = {iptm:.3f}.'
+    plt.title(pae_title)
     Ln = pae.shape[0]
     plt.imshow(pae, cmap='bwr', vmin=0, vmax=30, extent=(0, Ln, Ln, 0))
     if Ls is not None and len(Ls) > 1: plot_ticks(Ls)
@@ -37,7 +42,7 @@ def plot_pae(pae, Ls=None, dpi=100, fig=True):
 
 def plot_plddt(plddt, Ls=None, dpi=100, fig=True):
     if fig: plt.figure(figsize=(8,5), dpi=100)
-    plt.title('Predicted lDDT per position')
+    plt.title(f'Predicted lDDT per position. Mean = {np.mean(plddt):.3f}')
     plt.plot(plddt)
     if Ls is not None:
         L_prev = 0
@@ -156,7 +161,12 @@ if __name__ == '__main__':
             
             
             # Plot pAEs.
-            pae_fig = plot_pae(result['pae_output'][0], Ls)
+            ptm, iptm = None, None
+            if 'ptm' in result:
+                ptm = result['ptm']
+            if 'iptm' in result:
+                iptm = result['iptm']
+            pae_fig = plot_pae(result['pae_output'][0], Ls, ptm=ptm, iptm=iptm)
             pae_fig.savefig(pae_png)
             
             # Plot pLDDTs.

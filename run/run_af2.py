@@ -11,9 +11,10 @@ from functools import partial
 # Update PATH.
 sys.path.append('~/.miniconda3/envs/af2/lib/python3.7/site-packages')
 sys.path.append('../content/alphafold')
+sys.path.append('/proj/kuhl_lab/alphafold/')
 
 # Custom imports.
-from setup import getAF2Parser, QueryManager, getOutputDir, determine_weight_directory
+from run.setup import getAF2Parser, QueryManager, getOutputDir, determine_weight_directory
 from utils.utils import compressed_pickle, full_pickle
 from utils.template_utils import mk_hhsearch_db
 
@@ -85,6 +86,7 @@ def af2_init(proc_id: int, arg_file: str, lengths: Sequence[Union[int, Sequence[
     
         features_for_chain = getChainFeatures(
             sequences=sequences,
+            proc_id = proc_id,
             raw_inputs=raw_inputs,
             use_templates=args.use_templates,
             use_multimer=not args.no_multimer_models)
