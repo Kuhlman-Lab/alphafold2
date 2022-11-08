@@ -174,7 +174,7 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
     from features import (
         getRawInputs, getChainFeatures, getInputFeatures)
     from model import (
-        getRandomSeeds, predictStructure, getModelRunners)
+        getRandomSeeds, predictStructure, getModelNames, getModelRunner)
 
     # Log devices
     devices = jax.local_devices()
@@ -246,7 +246,8 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
             tolerance=RELAX_ENERGY_TOLERANCE,
             stiffness=RELAX_STIFFNESS,
             exclude_residues=RELAX_EXCLUDE_RESIDUES,
-            max_outer_iterations=RELAX_MAX_OUTER_ITERATIONS)
+            max_outer_iterations=RELAX_MAX_OUTER_ITERATIONS,
+            use_gpu=True)
 
     # Precompute query features
     query_features = []
@@ -283,29 +284,33 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
                     f'{timings[f"features_{query_idx}"]} seconds.')
 
         query_features.append( (prefix, sequences, input_features) )
-        
-    #print(query_features)
 
     # Get model names.
     if not compiled_runners:
-        model_names_and_runners = getModelRunners(
+        model_names = getModelNames(
             first_n_seqs=len(queries[0][1]),
             last_n_seqs=len(queries[-1][1]),
             use_ptm=args.use_ptm, num_models=args.num_models,
             use_multimer=not args.no_multimer_models,
-            use_templates=args.use_templates,
-            use_v1=args.use_multimer_v1,
-            num_ensemble=args.num_ensemble,
-            is_training=args.is_training,
-            num_recycle=args.max_recycle,
-            recycle_tol=args.recycle_tol,
-            params_dir=args.params_dir)
+            use_v1=args.use_multimer_v1)
     else:
-        model_names_and_runners = compiled_runners
+        model_names = compiled_runners
 
     results_list = []
     # Predict structures.
-    for model_name, model_runner in model_names_and_runners:
+    for model_name in model_names:
+        if compiled_runners:
+            model_runner = model_name[1]
+            model_name = model_name[0]
+        else:
+            model_runner = getModelRunner(
+                model_name=model_name,
+                num_ensemble=args.num_ensemble,
+                is_training=args.is_training,
+                num_recycle=args.max_recycle,
+                recycle_tol=args.recycle_tol,
+                params_dir=args.params_dir)
+            
         logger.info(f'Obtained model runner for {model_name}.')
 
         if 'multimer' in model_name:
