@@ -149,6 +149,10 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
     else:
         args = parser.parse_args(sys.argv[1:])
     del parser
+
+    if args.use_amber:
+        print('Warning: use_amber is currently disabled due to testing.')
+        args.use_amber = False
     
     if not args.params_dir:
         args.params_dir = determine_weight_directory()
