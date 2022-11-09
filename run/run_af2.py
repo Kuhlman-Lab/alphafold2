@@ -276,7 +276,8 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
             raw_inputs=raw_inputs_from_sequence,
             use_templates=args.use_templates,
             use_multimer=not args.no_multimer_models,
-            proc_id=proc_id)
+            proc_id=proc_id,
+            max_template_date=args.max_template_date)
 
         input_features = getInputFeatures(
             sequences=sequences,
