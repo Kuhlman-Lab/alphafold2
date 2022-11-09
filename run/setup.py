@@ -167,6 +167,14 @@ def getAF2Parser() -> FileArgumentParser:
                          action='store_true',
                          help='Whether or not to use templates as determined '
                          'by MMseqs2. Default is False.')
+    
+    parser.add_argument('--max_template_date',
+                        default='2100-01-01',
+                        type=str,
+                        help='The maximum allowed release date for templates '
+                        'to be used. If the template was released after '
+                        'specified date, it will be ignored. Format should '
+                        'be YYYY-MM-DD. Default is 2100-01-01')
 
     parser.add_argument('--custom_template_path',
                          type=str,

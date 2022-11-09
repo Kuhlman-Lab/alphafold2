@@ -535,7 +535,8 @@ def getChainFeatures(
         raw_inputs: RawInput,
         proc_id = None,
         use_templates: bool = False,
-        use_multimer = True) -> MutableMapping[str, pipeline.FeatureDict]:
+        use_multimer = True,
+        max_template_date='2100-01-01') -> MutableMapping[str, pipeline.FeatureDict]:
     features_for_chain = {}
     #print(sequences)
     if len(sequences) == 1 or use_multimer:
@@ -574,7 +575,7 @@ def getChainFeatures(
                         notebook_utils.empty_placeholder_template_features(
                             num_templates=0, num_res=len(sequence)))
                 else:
-                    temp_feats = make_template(sequence, a3m, template, proc_id)
+                    temp_feats = make_template(sequence, a3m, template, proc_id, max_template_date)
                     
                     empty_temp = False
                     for k in temp_feats:
@@ -717,11 +718,12 @@ def make_template(
         query_sequence: str,
         a3m_lines: Sequence[str],
         template_paths: str,
-        proc_id = None):
+        proc_id = None,
+        max_template_date = '2100-01-01'):
 
     template_featurizer = template_utils.TemplateHitFeaturizer(
             mmcif_dir=template_paths,
-            max_template_date='2100-01-01',
+            max_template_date=max_template_date,
             max_hits=20,
             kalign_binary_path='kalign',
             release_dates_path=None,
