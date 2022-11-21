@@ -426,6 +426,9 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
             fitness_list.append(fitness)
         
         return fitness_list
+    else:
+        if args.design_run:
+            return results_list
 
 if __name__ == '__main__':
     os.environ['TF_FORCE_UNITED_MEMORY'] = '1'
