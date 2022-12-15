@@ -157,7 +157,7 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
     if not args.params_dir:
         args.params_dir = determine_weight_directory()
     
-    output_dir = getOutputDir(out_dir=args.output_dir)
+    output_dir = getOutputDir(out_dir=args.output_dir, suffix=f'_{proc_id}' if proc_id else None)
     
     # Set up logger
     if not args.no_logging and not args.design_run:

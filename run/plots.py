@@ -53,6 +53,7 @@ def plot_plddt(plddt, Ls=None, dpi=100, fig=True):
     plt.ylim(0, 100)
     plt.ylabel('Predicted lDDT')
     plt.xlabel('Positions')
+    plt.grid()
     return plt
 
 
