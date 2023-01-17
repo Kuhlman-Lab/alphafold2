@@ -255,7 +255,7 @@ def runMMseqs2(
             out = submit(seqs=unique_seqs, mode=mode, N=N)
             while out['status'] in ['UNKNOWN', 'RATELIMIT']:
                 # Resubmit
-                time.sleep(5 + random.randint(0, 5))
+                time.sleep(10 + 5 * (len(unique_seqs) // 50) + random.randint(0, 5))
                 out = submit(seqs=unique_seqs, mode=mode, N=N)
 
             if out['status'] == 'ERROR':
@@ -270,7 +270,7 @@ def runMMseqs2(
             # Wait for job to finish
             ID = out['id']
             while out['status'] in ['UNKNOWN', 'RUNNING', 'PENDING']:
-                time.sleep(5 + random.randint(0, 5))
+                time.sleep(5 + 5 * (len(unique_seqs) // 50) + random.randint(0, 5))
                 out = status(ID)
 
             if out['status'] == 'COMPLETE':
