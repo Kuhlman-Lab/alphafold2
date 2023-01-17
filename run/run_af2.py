@@ -3,6 +3,7 @@
 # Standard imports.
 import os
 import sys
+import shutil
 import logging
 import time
 from typing import Sequence, Union, Optional
@@ -234,6 +235,7 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
         output_dir=output_dir,
         design_run=args.design_run,
         proc_id=proc_id)
+    print(raw_inputs_from_sequence)
    
     timings['raw_inputs'] = time.time() - t_0
     logger.info(f'Raw inputs have been generated. Took '
@@ -418,6 +420,14 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
             compressed_pickle(timing_path, timings)
         else:
             full_pickle(timing_path, timings)
+
+    if args.design_run:
+        dirs = [d for d in os.listdir(output_dir) if os.path.isdir(os.path.join(output_dir, d))]
+        for d in dirs:
+            if "mmseqs" in d:
+                if os.path.exists(os.path.join(output_dir, d)):
+                    print("Deleting...", os.path.join(output_dir, d))
+                    shutil.rmtree(os.path.join(output_dir, d))
 
     if fitness_fxn:
         fitness_list = []
