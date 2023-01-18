@@ -307,7 +307,7 @@ class AlphaFold(hk.Module):
       predictions from the various heads.
       Recycling information is a tuple of recycling iteration and tolerance.
     """
-
+    c = self.config
     impl = AlphaFoldIteration(self.config, self.global_config)
     batch_size, num_residues = batch['aatype'].shape
 
@@ -343,14 +343,76 @@ class AlphaFold(hk.Module):
           compute_loss=compute_loss,
           ensemble_representations=ensemble_representations)
 
-    ret = do_call(prev=batch.pop('prev'), recycle_idx=0)
-    ret['prev'] = get_prev(ret)
+    prev = {}
+    emb_config = self.config.embeddings_and_evoformer
+    if emb_config.recycle_pos:
+      prev['prev_pos'] = jnp.zeros(
+          [num_residues, residue_constants.atom_type_num, 3])
+    if emb_config.recycle_features:
+      prev['prev_msa_first_row'] = jnp.zeros(
+          [num_residues, emb_config.msa_channel])
+      prev['prev_pair'] = jnp.zeros(
+          [num_residues, num_residues, emb_config.pair_channel])
+
+    if self.config.num_recycle:
+      if 'num_iter_recycling' in batch:
+        # Training time: num_iter_recycling is in batch.
+        # The value for each ensemble batch is the same, so arbitrarily taking
+        # 0-th.
+        num_iter = batch['num_iter_recycling'][0]
+        
+        # Add insurance that we will not run more
+        # recyclings than the model is configured to run.
+        num_iter = jnp.minimum(num_iter, self.config.num_recycle)
+      else:
+        # Eval mode or tests: use the maximum number of iterations.
+        num_iter = self.config.num_recycle
+      
+      def distances(points):
+        """Computes all pairwise distances for a set of points."""
+        return jnp.sqrt(jnp.sum((points[:, None] - points[None, :])**2,
+                                axis=-1))
+        
+      def recycle_body(x):
+        i, _, prev = x
+        ret = do_call(prev=prev, recycle_idx=i)
+        return i+1, prev, get_prev(ret)
+      
+      def recycle_cond(x):
+        i, prev, next_in = x
+        ca_idx = residue_constants.atom_order['CA']
+        sq_diff = jnp.square(distances(prev['prev_pos'][:, ca_idx, :]) -
+                            distances(next_in['prev_pos'][:, ca_idx, :]))
+        mask = batch['seq_mask'][..., None] * batch['seq_mask'][..., None, :]
+        sq_diff = utils.mask_mean(mask[0], sq_diff)
+        # Early stopping criteria based on criteria used in
+        # AF2Complex: https://www.nature.com/articles/s41467-022-29394-2
+        diff = jnp.sqrt(sq_diff + 1e-8) # avoid bad numerics giving negatives
+        less_than_max_recycles = (i < num_iter)
+        has_exceeded_tolerance = (
+            (i == 0) | (diff > c.recycle_early_stop_tolerance))
+        return less_than_max_recycles & has_exceeded_tolerance
+      
+      if hk.running_init():
+        num_recycles, _, prev = recycle_body(
+          (0, prev, prev))
+      else:
+        num_recycles, _, prev = hk.while_loop(
+            recycle_cond,
+            recycle_body,
+            (0, prev, prev))
+    else:
+      num_recycles = 0
+
+    ret = do_call(prev=prev, recycle_idx=num_recycles)
     if compute_loss:
       ret = ret[0], [ret[1]]
 
     if not return_representations:
       del (ret[0] if compute_loss else ret)['representations']  # pytype: disable=unsupported-operands
-    return ret, None
+    ret['num_recycles'] = num_recycles
+      
+    return ret
 
 
 class TemplatePairStack(hk.Module):
@@ -465,7 +527,7 @@ class Transition(hk.Module):
     num_intermediate = int(nc * self.config.num_intermediate_factor)
     mask = jnp.expand_dims(mask, axis=-1)
 
-    act = hk.LayerNorm(
+    act = common_modules.LayerNorm(
         axis=[-1],
         create_scale=True,
         create_offset=True,
@@ -533,12 +595,15 @@ class Attention(hk.Module):
 
     q_weights = hk.get_parameter(
         'query_w', shape=(q_data.shape[-1], num_head, key_dim),
+        dtype=q_data.dtype,
         init=glorot_uniform())
     k_weights = hk.get_parameter(
         'key_w', shape=(m_data.shape[-1], num_head, key_dim),
+        dtype=q_data.dtype,
         init=glorot_uniform())
     v_weights = hk.get_parameter(
         'value_w', shape=(m_data.shape[-1], num_head, value_dim),
+        dtype=q_data.dtype,
         init=glorot_uniform())
 
     q = jnp.einsum('bqa,ahc->bqhc', q_data, q_weights) * key_dim**(-0.5)
@@ -559,10 +624,12 @@ class Attention(hk.Module):
       gating_weights = hk.get_parameter(
           'gating_w',
           shape=(q_data.shape[-1], num_head, value_dim),
+          dtype=q_data.dtype,
           init=hk.initializers.Constant(0.0))
       gating_bias = hk.get_parameter(
           'gating_b',
           shape=(num_head, value_dim),
+          dtype=q_data.dtype,
           init=hk.initializers.Constant(1.0))
 
       gate_values = jnp.einsum('bqc, chv->bqhv', q_data,
@@ -574,9 +641,12 @@ class Attention(hk.Module):
 
     o_weights = hk.get_parameter(
         'output_w', shape=(num_head, value_dim, self.output_dim),
+        dtype=q_data.dtype,
         init=init)
-    o_bias = hk.get_parameter('output_b', shape=(self.output_dim,),
-                              init=hk.initializers.Constant(0.0))
+    o_bias = hk.get_parameter(
+        'output_b', shape=(self.output_dim,),
+        dtype=q_data.dtype,
+        init=hk.initializers.Constant(0.0))
 
     output = jnp.einsum('bqhc,hco->bqo', weighted_avg, o_weights) + o_bias
 
@@ -622,12 +692,15 @@ class GlobalAttention(hk.Module):
 
     q_weights = hk.get_parameter(
         'query_w', shape=(q_data.shape[-1], num_head, key_dim),
+        dtype=q_data.dtype,
         init=glorot_uniform())
     k_weights = hk.get_parameter(
         'key_w', shape=(m_data.shape[-1], key_dim),
+        dtype=q_data.dtype,
         init=glorot_uniform())
     v_weights = hk.get_parameter(
         'value_w', shape=(m_data.shape[-1], value_dim),
+        dtype=q_data.dtype,
         init=glorot_uniform())
 
     v = jnp.einsum('bka,ac->bkc', m_data, v_weights)
@@ -648,18 +721,23 @@ class GlobalAttention(hk.Module):
 
     o_weights = hk.get_parameter(
         'output_w', shape=(num_head, value_dim, self.output_dim),
+        dtype=q_data.dtype,
         init=init)
-    o_bias = hk.get_parameter('output_b', shape=(self.output_dim,),
-                              init=hk.initializers.Constant(0.0))
+    o_bias = hk.get_parameter(
+        'output_b', shape=(self.output_dim,),
+        dtype=q_data.dtype,
+        init=hk.initializers.Constant(0.0))
 
     if self.config.gating:
       gating_weights = hk.get_parameter(
           'gating_w',
           shape=(q_data.shape[-1], num_head, value_dim),
+          dtype=q_data.dtype,
           init=hk.initializers.Constant(0.0))
       gating_bias = hk.get_parameter(
           'gating_b',
           shape=(num_head, value_dim),
+          dtype=q_data.dtype,
           init=hk.initializers.Constant(1.0))
 
       gate_values = jnp.einsum('bqc, chv->bqhv', q_data, gating_weights)
@@ -709,11 +787,11 @@ class MSARowAttentionWithPairBias(hk.Module):
     bias = (1e9 * (msa_mask - 1.))[:, None, None, :]
     assert len(bias.shape) == 4
 
-    msa_act = hk.LayerNorm(
+    msa_act = common_modules.LayerNorm(
         axis=[-1], create_scale=True, create_offset=True, name='query_norm')(
             msa_act)
 
-    pair_act = hk.LayerNorm(
+    pair_act = common_modules.LayerNorm(
         axis=[-1],
         create_scale=True,
         create_offset=True,
@@ -724,6 +802,7 @@ class MSARowAttentionWithPairBias(hk.Module):
     weights = hk.get_parameter(
         'feat_2d_weights',
         shape=(pair_act.shape[-1], c.num_head),
+        dtype=msa_act.dtype,
         init=hk.initializers.RandomNormal(stddev=init_factor))
     nonbatched_bias = jnp.einsum('qkc,ch->hqk', pair_act, weights)
 
@@ -776,7 +855,7 @@ class MSAColumnAttention(hk.Module):
     bias = (1e9 * (msa_mask - 1.))[:, None, None, :]
     assert len(bias.shape) == 4
 
-    msa_act = hk.LayerNorm(
+    msa_act = common_modules.LayerNorm(
         axis=[-1], create_scale=True, create_offset=True, name='query_norm')(
             msa_act)
 
@@ -831,7 +910,7 @@ class MSAColumnGlobalAttention(hk.Module):
     bias = (1e9 * (msa_mask - 1.))[:, None, None, :]
     assert len(bias.shape) == 4
 
-    msa_act = hk.LayerNorm(
+    msa_act = common_modules.LayerNorm(
         axis=[-1], create_scale=True, create_offset=True, name='query_norm')(
             msa_act)
 
@@ -888,7 +967,7 @@ class TriangleAttention(hk.Module):
     bias = (1e9 * (pair_mask - 1.))[:, None, None, :]
     assert len(bias.shape) == 4
 
-    pair_act = hk.LayerNorm(
+    pair_act = common_modules.LayerNorm(
         axis=[-1], create_scale=True, create_offset=True, name='query_norm')(
             pair_act)
 
@@ -896,6 +975,7 @@ class TriangleAttention(hk.Module):
     weights = hk.get_parameter(
         'feat_2d_weights',
         shape=(pair_act.shape[-1], c.num_head),
+        dtype=pair_act.dtype,
         init=hk.initializers.RandomNormal(stddev=init_factor))
     nonbatched_bias = jnp.einsum('qkc,ch->hqk', pair_act, weights)
 
@@ -993,7 +1073,7 @@ class PredictedLDDTHead(hk.Module):
     """
     act = representations['structure_module']
 
-    act = hk.LayerNorm(
+    act = common_modules.LayerNorm(
         axis=[-1],
         create_scale=True,
         create_offset=True,
@@ -1215,6 +1295,19 @@ class ExperimentallyResolvedHead(hk.Module):
     return output
 
 
+def _layer_norm(axis=-1, name='layer_norm'):
+  return common_modules.LayerNorm(
+      axis=axis,
+      create_scale=True,
+      create_offset=True,
+      eps=1e-5,
+      use_fast_variance=True,
+      scale_init=hk.initializers.Constant(1.),
+      offset_init=hk.initializers.Constant(0.),
+      param_axis=axis,
+      name=name)
+
+
 class TriangleMultiplication(hk.Module):
   """Triangle multiplication layer ("outgoing" or "incoming").
 
@@ -1227,25 +1320,34 @@ class TriangleMultiplication(hk.Module):
     self.config = config
     self.global_config = global_config
 
-  def __call__(self, act, mask, is_training=True):
+  def __call__(self, left_act, left_mask, is_training=True):
     """Builds TriangleMultiplication module.
 
     Arguments:
-      act: Pair activations, shape [N_res, N_res, c_z]
-      mask: Pair mask, shape [N_res, N_res].
+      left_act: Pair activations, shape [N_res, N_res, c_z]
+      left_mask: Pair mask, shape [N_res, N_res].
       is_training: Whether the module is in training mode.
 
     Returns:
-      Outputs, same shape/type as act.
+      Outputs, same shape/type as left_act.
     """
     del is_training
+    
+    if self.config.fuse_projection_weights:
+      return self._fused_triangle_multiplication(left_act, left_mask)
+    else:
+      return self._triangle_multiplication(left_act, left_mask)
+    
+  @hk.transparent
+  def _triangle_multiplication(self, left_act, left_mask):
+    """Implementation of TriangleMultiplication used in AF2 and AF-M<2.3."""
     c = self.config
     gc = self.global_config
 
-    mask = mask[..., None]
+    mask = left_mask[..., None]
 
-    act = hk.LayerNorm(axis=[-1], create_scale=True, create_offset=True,
-                       name='layer_norm_input')(act)
+    act = common_modules.LayerNorm(axis=[-1], create_scale=True, create_offset=True,
+                       name='layer_norm_input')(left_act)
     input_act = act
 
     left_projection = common_modules.Linear(
@@ -1281,7 +1383,7 @@ class TriangleMultiplication(hk.Module):
     #   b = left_proj_act and a = right_proj_act
     act = jnp.einsum(c.equation, left_proj_act, right_proj_act)
 
-    act = hk.LayerNorm(
+    act = common_modules.LayerNorm(
         axis=[-1],
         create_scale=True,
         create_offset=True,
@@ -1302,6 +1404,50 @@ class TriangleMultiplication(hk.Module):
         name='gating_linear')(input_act))
     act *= gate_values
 
+    return act
+  
+  @hk.transparent
+  def _fused_triangle_multiplication(self, left_act, left_mask):
+    """TriangleMultiplication with fused projection weights."""
+    mask = left_mask[..., None]
+    c = self.config
+    gc = self.global_config
+    
+    left_act = _layer_norm(axis=-1, name='left_norm_input')(left_act)
+    
+    # Both left and right projections are fused into projection.
+    projection = common_modules.Linear(
+      2*c.num_intermediate_channel, name='projection')
+    proj_act = mask * projection(left_act)
+    
+    # Both left + right gate are fused into gate_values.
+    gate_values = common_modules.Linear(
+      2 * c.num_intermediate_channel,
+      name='gate',
+      bias_init=1.,
+      initializer=utils.final_init(gc))(left_act)
+    proj_act *= jax.nn.sigmoid(gate_values)
+    
+    left_proj_act = proj_act[:, :, :c.num_intermediate_channel]
+    right_proj_act = proj_act[:, :, c.num_intermediate_channel:]
+    act = jnp.einsum(c.equation, left_proj_act, right_proj_act)
+    
+    act = _layer_norm(axis=-1, name='center_norm')(act)
+    
+    output_channel = int(left_act.shape[-1])
+    
+    act = common_modules.Linear(
+        output_channel,
+        initializer=utils.final_init(gc),
+        name='output_projection')(act)
+    
+    gate_values = common_modules.Linear(
+        output_channel,
+        bias_init=1.,
+        initializer=utils.final_init(gc),
+        name='gating_linear')(left_act)
+    act *= jax.nn.sigmoid(gate_values)
+    
     return act
 
 
@@ -1410,7 +1556,7 @@ class OuterProductMean(hk.Module):
     c = self.config
 
     mask = mask[..., None]
-    act = hk.LayerNorm([-1], True, True, name='layer_norm_input')(act)
+    act = common_modules.LayerNorm([-1], True, True, name='layer_norm_input')(act)
 
     left_act = mask * common_modules.Linear(
         c.num_outer_channel,
@@ -1433,9 +1579,11 @@ class OuterProductMean(hk.Module):
         'output_w',
         shape=(c.num_outer_channel, c.num_outer_channel,
                self.num_output_channel),
+        dtype=act.dtype,
         init=init_w)
     output_b = hk.get_parameter(
         'output_b', shape=(self.num_output_channel,),
+        dtype=act.dtype,
         init=hk.initializers.Constant(0.0))
 
     def compute_chunk(left_act):
@@ -1702,7 +1850,7 @@ class EmbeddingsAndEvoformer(hk.Module):
               dgram)
 
     if c.recycle_features:
-      prev_msa_first_row = hk.LayerNorm(
+      prev_msa_first_row = common_modules.LayerNorm(
         axis=[-1],
         create_scale=True,
         create_offset=True,
@@ -1710,7 +1858,7 @@ class EmbeddingsAndEvoformer(hk.Module):
           batch['prev_msa_first_row'])
       msa_activations = msa_activations.at[0].add(prev_msa_first_row)
 
-      pair_activations += hk.LayerNorm(
+      pair_activations += common_modules.LayerNorm(
         axis=[-1],
         create_scale=True,
         create_offset=True,
@@ -1984,7 +2132,7 @@ class SingleTemplateEmbedding(hk.Module):
         self.config.template_pair_stack, self.global_config)(
             act, mask_2d, is_training)
 
-    act = hk.LayerNorm([-1], True, True, name='output_layer_norm')(act)
+    act = common_modules.LayerNorm([-1], True, True, name='output_layer_norm')(act)
     return act
 
 
