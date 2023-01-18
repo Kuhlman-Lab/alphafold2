@@ -21,7 +21,7 @@ import random
 import shutil
 import sys
 import time
-from typing import Dict, Union, Optional
+from typing import Dict, Union
 
 from absl import app
 from absl import flags
@@ -34,27 +34,21 @@ from alphafold.data import templates
 from alphafold.data.tools import hhsearch
 from alphafold.data.tools import hmmsearch
 from alphafold.model import config
+from alphafold.model import data
 from alphafold.model import model
 from alphafold.relax import relax
 import numpy as np
 
-from alphafold.model import data
 # Internal import (7716).
 
 logging.set_verbosity(logging.INFO)
 
-flags.DEFINE_list('fasta_paths', None, 'Paths to FASTA files, each containing '
-                  'a prediction target. Paths should be separated by commas. '
-                  'All FASTA paths must have a unique basename as the '
-                  'basename is used to name the output directories for '
-                  'each prediction.')
-flags.DEFINE_list('is_prokaryote_list', None, 'Optional for multimer system, '
-                  'not used by the single chain system. '
-                  'This list should contain a boolean for each fasta '
-                  'specifying true where the target complex is from a '
-                  'prokaryote, and false where it is not, or where the '
-                  'origin is unknown. These values determine the pairing '
-                  'method for the MSA.')
+flags.DEFINE_list(
+  'fasta_paths', None, 'Paths to FASTA files, each containing a prediction '
+  'target that will be folded one after another. If a FASTA file contains '
+  'multiple sequences, then it will be folded as a multimer. Paths should be '
+  'separated by commas. All FASTA paths must have a unique basename as the '
+  'basename is used to name the output directories for each prediction.')
 
 flags.DEFINE_string('data_dir', None, 'Path to directory of supporting data.')
 flags.DEFINE_string('output_dir', None, 'Path to a directory that will '
@@ -79,7 +73,7 @@ flags.DEFINE_string('bfd_database_path', None, 'Path to the BFD '
                     'database for use by HHblits.')
 flags.DEFINE_string('small_bfd_database_path', None, 'Path to the small '
                     'version of BFD used with the "reduced_dbs" preset.')
-flags.DEFINE_string('uniclust30_database_path', None, 'Path to the Uniclust30 '
+flags.DEFINE_string('uniref30_database_path', None, 'Path to the UniRef30 '
                     'database for use by HHblits.')
 flags.DEFINE_string('uniprot_database_path', None, 'Path to the Uniprot '
                     'database for use by JackHMMer.')
@@ -113,9 +107,27 @@ flags.DEFINE_integer('random_seed', None, 'The random seed for the data '
                      'that even if this is set, Alphafold may still not be '
                      'deterministic, because processes like GPU inference are '
                      'nondeterministic.')
+flags.DEFINE_integer('num_multimer_predictions_per_model', 5, 'How many '
+                     'predictions (each with a different random seed) will be '
+                     'generated per model. E.g. if this is 2 and there are 5 '
+                     'models then there will be 10 predictions per input. '
+                     'Note: this FLAG only applies if model_preset=multimer')
 flags.DEFINE_boolean('use_precomputed_msas', False, 'Whether to read MSAs that '
-                     'have been written to disk. WARNING: This will not check '
-                     'if the sequence, database or configuration have changed.')
+                     'have been written to disk instead of running the MSA '
+                     'tools. The MSA files are looked up in the output '
+                     'directory, so it must stay the same between multiple '
+                     'runs that are to reuse the MSAs. WARNING: This will not '
+                     'check if the sequence, database or configuration have '
+                     'changed.')
+flags.DEFINE_boolean('run_relax', True, 'Whether to run the final relaxation '
+                     'step on the predicted models. Turning relax off might '
+                     'result in predictions with distracting stereochemical '
+                     'violations but might help in case you are having issues '
+                     'with the relaxation stage.')
+flags.DEFINE_boolean('use_gpu_relax', None, 'Whether to relax on GPU. '
+                     'Relax on GPU can be much faster than CPU, so it is '
+                     'recommended to enable if possible. GPUs must be available'
+                     ' if this setting is enabled.')
 
 FLAGS = flags.FLAGS
 
@@ -144,8 +156,7 @@ def predict_structure(
     model_runners: Dict[str, model.RunModel],
     amber_relaxer: relax.AmberRelaxation,
     benchmark: bool,
-    random_seed: int,
-    is_prokaryote: Optional[bool] = None):
+    random_seed: int):
   """Predicts structure using AlphaFold for the given sequence."""
   logging.info('Predicting %s', fasta_name)
   timings = {}
@@ -158,15 +169,9 @@ def predict_structure(
 
   # Get features.
   t_0 = time.time()
-  if is_prokaryote is None:
-    feature_dict = data_pipeline.process(
-        input_fasta_path=fasta_path,
-        msa_output_dir=msa_output_dir)
-  else:
-    feature_dict = data_pipeline.process(
-        input_fasta_path=fasta_path,
-        msa_output_dir=msa_output_dir,
-        is_prokaryote=is_prokaryote)
+  feature_dict = data_pipeline.process(
+      input_fasta_path=fasta_path,
+      msa_output_dir=msa_output_dir)
   timings['features'] = time.time() - t_0
 
   # Write out features as a pickled dictionary.
@@ -176,6 +181,7 @@ def predict_structure(
 
   unrelaxed_pdbs = {}
   relaxed_pdbs = {}
+  relax_metrics = {}
   ranking_confidences = {}
 
   # Run the models.
@@ -234,7 +240,12 @@ def predict_structure(
     if amber_relaxer:
       # Relax the prediction.
       t_0 = time.time()
-      relaxed_pdb_str, _, _ = amber_relaxer.process(prot=unrelaxed_protein)
+      relaxed_pdb_str, _, violations = amber_relaxer.process(
+        prot=unrelaxed_protein)
+      relax_metrics[model_name] = {
+        'remaining_violations': violations,
+        'remaining_violations_count': sum(violations)
+      }
       timings[f'relax_{model_name}'] = time.time() - t_0
 
       relaxed_pdbs[model_name] = relaxed_pdb_str
@@ -268,6 +279,10 @@ def predict_structure(
   timings_output_path = os.path.join(output_dir, 'timings.json')
   with open(timings_output_path, 'w') as f:
     f.write(json.dumps(timings, indent=4))
+  if amber_relaxer:
+    relax_metrics_path = os.path.join(output_dir, 'relax_metrics.json')
+    with open(relax_metrics_path, 'w') as f:
+      f.write(json.dumps(relax_metrics, indent=4))
 
 
 def main(argv):
@@ -285,7 +300,7 @@ def main(argv):
               should_be_set=use_small_bfd)
   _check_flag('bfd_database_path', 'db_preset',
               should_be_set=not use_small_bfd)
-  _check_flag('uniclust30_database_path', 'db_preset',
+  _check_flag('uniref30_database_path', 'db_preset',
               should_be_set=not use_small_bfd)
 
   run_multimer_system = 'multimer' in FLAGS.model_preset
@@ -305,22 +320,6 @@ def main(argv):
   fasta_names = [pathlib.Path(p).stem for p in FLAGS.fasta_paths]
   if len(fasta_names) != len(set(fasta_names)):
     raise ValueError('All FASTA paths must have a unique basename.')
-
-  # Check that is_prokaryote_list has same number of elements as fasta_paths,
-  # and convert to bool.
-  if FLAGS.is_prokaryote_list:
-    if len(FLAGS.is_prokaryote_list) != len(FLAGS.fasta_paths):
-      raise ValueError('--is_prokaryote_list must either be omitted or match '
-                       'length of --fasta_paths.')
-    is_prokaryote_list = []
-    for s in FLAGS.is_prokaryote_list:
-      if s in ('true', 'false'):
-        is_prokaryote_list.append(s == 'true')
-      else:
-        raise ValueError('--is_prokaryote_list must contain comma separated '
-                         'true or false values.')
-  else:  # Default is_prokaryote to False.
-    is_prokaryote_list = [False] * len(fasta_names)
 
   if run_multimer_system:
     template_searcher = hmmsearch.Hmmsearch(
@@ -352,7 +351,7 @@ def main(argv):
       uniref90_database_path=FLAGS.uniref90_database_path,
       mgnify_database_path=FLAGS.mgnify_database_path,
       bfd_database_path=FLAGS.bfd_database_path,
-      uniclust30_database_path=FLAGS.uniclust30_database_path,
+      uniref30_database_path=FLAGS.uniref30_database_path,
       small_bfd_database_path=FLAGS.small_bfd_database_path,
       template_searcher=template_searcher,
       template_featurizer=template_featurizer,
@@ -398,7 +397,6 @@ def main(argv):
 
   # Predict structure for each of the sequences.
   for i, fasta_path in enumerate(FLAGS.fasta_paths):
-    is_prokaryote = is_prokaryote_list[i] if run_multimer_system else None
     fasta_name = fasta_names[i]
     predict_structure(
         fasta_path=fasta_path,
@@ -408,8 +406,7 @@ def main(argv):
         model_runners=model_runners,
         amber_relaxer=amber_relaxer,
         benchmark=FLAGS.benchmark,
-        random_seed=random_seed,
-        is_prokaryote=is_prokaryote)
+        random_seed=random_seed)
 
 
 if __name__ == '__main__':
@@ -422,6 +419,7 @@ if __name__ == '__main__':
       'template_mmcif_dir',
       'max_template_date',
       'obsolete_pdbs_path',
+      'use_gpu_relax',
   ])
 
   app.run(main)
