@@ -383,8 +383,8 @@ class AlphaFold(hk.Module):
         ca_idx = residue_constants.atom_order['CA']
         sq_diff = jnp.square(distances(prev['prev_pos'][:, ca_idx, :]) -
                             distances(next_in['prev_pos'][:, ca_idx, :]))
-        mask = batch['seq_mask'][:, None] * batch['seq_mask'][None, :]
-        sq_diff = utils.mask_mean(mask, sq_diff)
+        mask = batch['seq_mask'][..., None] * batch['seq_mask'][..., None, :]
+        sq_diff = utils.mask_mean(mask[0], sq_diff)
         # Early stopping criteria based on criteria used in
         # AF2Complex: https://www.nature.com/articles/s41467-022-29394-2
         diff = jnp.sqrt(sq_diff + 1e-8) # avoid bad numerics giving negatives
