@@ -469,8 +469,13 @@ CONFIG = ml_collections.ConfigDict({
                 'weight': 2.0
             },
         },
-        'num_recycle': 3,
-        'recycle_tol': 0.0,
+        'num_recycle': 3,        
+        # A negative value indicates that no early stopping will occur, i.e.
+        # the model will always run `num_recycle` number of recycling
+        # iterations. A positive value will enable early stopping if the
+        # difference in pairwise distances is less than the tolerance between
+        # recycling steps.
+        'recycle_early_stop_tolerance': 0.5,
         'resample_msa_in_recycling': True
     },
 })
@@ -703,14 +708,13 @@ CONFIG_MULTIMER = ml_collections.ConfigDict({
         'stop_at_score': 100.0,
         'stop_at_score_ranker': 'plddt',
         'num_ensemble_eval': 1,
-        'num_recycle': 20,
+        'num_recycle': 3,
         # A negative value indicates that no early stopping will occur, i.e.
         # the model will always run `num_recycle` number of recycling
         # iterations. A positive value will enable early stopping if the
         # difference in pairwise distances is less than the tolerance between
         # recycling steps.
         'recycle_early_stop_tolerance': 0.5,
-        'recycle_tol': 0.0,
         'resample_msa_in_recycling': True
     }
 })

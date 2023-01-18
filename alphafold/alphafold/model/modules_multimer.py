@@ -489,9 +489,9 @@ class AlphaFold(hk.Module):
       def recycle_cond(x):
         i, prev, next_in, _ = x
         ca_idx = residue_constants.atom_order['CA']
-        sq_diff = jnp.square(distances(prev['prev_pos'][:, ca_idx, :]) -
-                            distances(next_in['prev_pos'][:, ca_idx, :]))
-        mask = batch['seq_mask'][:, None] * batch['seq_mask'][None, :]
+        sq_diff = jnp.square(distances(prev['prev_pos'][..., ca_idx, :]) -
+                            distances(next_in['prev_pos'][..., ca_idx, :]))
+        mask = batch['seq_mask'][..., None] * batch['seq_mask'][..., None, :]
         sq_diff = utils.mask_mean(mask, sq_diff)
         # Early stopping criteria based on criteria used in
         # AF2Complex: https://www.nature.com/articles/s41467-022-29394-2
@@ -514,13 +514,13 @@ class AlphaFold(hk.Module):
       num_recycles = 0
 
     # Run extra iteration.
-    ret = apply_network(prev=batch.pop('prev'), safe_key=safe_key)
+    ret = apply_network(prev=prev, safe_key=safe_key)
 
     if not return_representations:
       del ret['representations']
     ret['num_recycles'] = num_recycles
       
-    return ret, None
+    return ret
 
 
 class EmbeddingsAndEvoformer(hk.Module):
@@ -733,6 +733,7 @@ class EmbeddingsAndEvoformer(hk.Module):
       if gc.use_remat:
         extra_evoformer_fn = hk.remat(extra_evoformer_fn)
         
+      safe_key, safe_subkey = safe_key.split()
       extra_evoformer_stack = layer_stack.layer_stack(
         c.extra_msa_stack_num_block)(
           extra_evoformer_fn)
