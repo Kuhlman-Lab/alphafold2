@@ -7,3 +7,4 @@
 --num_models 1
 --max_recycle 1
 --save_timing
+--use_multimer_v2
