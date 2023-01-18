@@ -201,6 +201,10 @@ def getAF2Parser() -> FileArgumentParser:
                         help='Overwrites the default method of using updated '
                         'AF-Multimer v2 weights and uses the v1 weights. Note '
                         'that large clashes may occur when using v1 weights.')
+    parser.add_argument('--use_multimer_v2',
+                        action='store_true',
+                        help='Overwrites the default method of using updated '
+                        '(Dec2022) AF-Multimer v3 weights and uses the v2 weights.')
 
     parser.add_argument('--num_models',
                          default=5,
@@ -248,6 +252,9 @@ def getAF2Parser() -> FileArgumentParser:
                          help='Tolerance for deciding when to stop recycling '
                          'the structure through the network (Ca-RMS between '
                          'recycles).')
+    
+    # DEVELOPER ARGUMENT
+    parser.add_argument('--__override_disable', action='store_true')
                         
     return parser
 

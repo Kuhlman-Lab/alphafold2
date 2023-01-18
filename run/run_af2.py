@@ -27,6 +27,8 @@ RELAX_STIFFNESS = 10.0
 RELAX_EXCLUDE_RESIDUES = []
 RELAX_MAX_OUTER_ITERATIONS = 3
 
+# Developer option for disabling
+DISABLE = True
 
 def af2_init(proc_id: int, arg_file: str, lengths: Sequence[Union[int, Sequence[int]]], fitness_fxn):
     print('initialization of process', proc_id)
@@ -150,9 +152,12 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
     else:
         args = parser.parse_args(sys.argv[1:])
     del parser
+    
+    if DISABLE and not args.__override_disable:
+        raise Exception("AlphaFold is currently under maintenance... Please try again in an hour.")
 
     if args.use_amber:
-        print('Warning: use_amber is currently disabled due to testing.')
+        print('Warning: use_amber is currently disabled due to testing. Disabling...')
         args.use_amber = False
     
     if not args.params_dir:
@@ -235,7 +240,7 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
         output_dir=output_dir,
         design_run=args.design_run,
         proc_id=proc_id)
-    print(raw_inputs_from_sequence)
+    #print(raw_inputs_from_sequence)
    
     timings['raw_inputs'] = time.time() - t_0
     logger.info(f'Raw inputs have been generated. Took '
@@ -299,7 +304,8 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
             last_n_seqs=len(queries[-1][1]),
             use_ptm=args.use_ptm, num_models=args.num_models,
             use_multimer=not args.no_multimer_models,
-            use_v1=args.use_multimer_v1)
+            use_multimer_v1=args.use_multimer_v1,
+            use_multimer_v2=args.use_multimer_v2)
     else:
         model_names = compiled_runners
 

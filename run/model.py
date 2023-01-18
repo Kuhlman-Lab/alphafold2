@@ -40,7 +40,8 @@ def getRandomSeeds(
 def getModelNames(
         first_n_seqs: int, last_n_seqs: int,
         use_ptm: bool = True, num_models: int = 5,
-        use_multimer = True, use_v1: bool = False) -> Tuple[str]:
+        use_multimer = True, use_multimer_v1: bool = False, 
+        use_multimer_v2: bool = False) -> Tuple[str]:
 
     include_monomer = False
     include_multimer = False
@@ -56,10 +57,12 @@ def getModelNames(
         monomer_models = config.MODEL_PRESETS[key]
         model_names += monomer_models[:num_models]
     if include_multimer:
-        if use_v1:
+        if use_multimer_v1:
             multimer_models = config.MODEL_PRESETS['multimer_v1']
-        else:
+        elif use_multimer_v2:
             multimer_models = config.MODEL_PRESETS['multimer_v2']
+        else:
+            multimer_models = config.MODEL_PRESETS['multimer_v3']
             
         model_names += multimer_models[:num_models]
 
@@ -72,8 +75,6 @@ def getModelRunner(
         rank_by: str = 'plddt', params_dir: str = '../alphafold/data') -> model.RunModel:
 
     cfg = config.model_config(model_name)
-    cfg.model.stop_at_score = float(stop_at_score)
-    cfg.model.stop_at_score_ranker = rank_by
     
     if '_ptm' in model_name:
         cfg.data.common.num_recycle = num_recycle
@@ -82,7 +83,7 @@ def getModelRunner(
         cfg.model.num_ensemble_eval = num_ensemble
 
     cfg.model.num_recycle = num_recycle
-    cfg.model.recycle_tol = recycle_tol
+    cfg.model.recycle_early_stop_tolerance = recycle_tol
         
     params = data.get_model_haiku_params(model_name, params_dir)
 
@@ -353,7 +354,7 @@ def predictStructure(
     if crop_size:
         processed_feature_dict = batch_input(processed_feature_dict, model_runner, model_name, crop_size, use_templates, run_multimer)
 
-    prediction, _ = model_runner.predict(
+    prediction = model_runner.predict(
         processed_feature_dict, random_seed=random_seed)
 
     result = {}
