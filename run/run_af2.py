@@ -28,7 +28,7 @@ RELAX_EXCLUDE_RESIDUES = []
 RELAX_MAX_OUTER_ITERATIONS = 3
 
 # Developer option for disabling
-DISABLE = True
+DISABLE = False
 
 def af2_init(proc_id: int, arg_file: str, lengths: Sequence[Union[int, Sequence[int]]], fitness_fxn):
     print('initialization of process', proc_id)
