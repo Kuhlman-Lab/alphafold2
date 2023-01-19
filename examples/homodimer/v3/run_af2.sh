@@ -13,6 +13,8 @@
 #SBATCH --mail-type=BEGIN,END,FAIL
 #SBATCH --mail-user=nzrandol@unc.edu
 
+module add gcc
+module add cuda
 source ~/.bashrc
 conda activate af2
 python /proj/kuhl_lab/alphafold/run/run_af2.py @flags/flags_longleaf.txt

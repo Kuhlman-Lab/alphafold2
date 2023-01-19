@@ -147,7 +147,7 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
         compiled_runners = None) -> Optional[Sequence[float]]:
 
     parser = getAF2Parser()
-    if arg_file != None:
+    if arg_file is not None:
         args = parser.parse_args([f'@{arg_file}'])
     else:
         args = parser.parse_args(sys.argv[1:])
@@ -241,7 +241,7 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
         design_run=args.design_run,
         proc_id=proc_id)
     #print(raw_inputs_from_sequence)
-   
+
     timings['raw_inputs'] = time.time() - t_0
     logger.info(f'Raw inputs have been generated. Took '
                 f'{timings["raw_inputs"]:.2f} seconds.')
