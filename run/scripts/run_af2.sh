@@ -12,6 +12,7 @@
 #SBATCH --mail-user=user@email.com
 
 source ~/.bashrc
-module add cuda/11.2
+module load gcc
+module add cuda
 conda activate af2
 python /proj/kuhl_lab/alphafold/run/run_af2.py @flags_longleaf.txt

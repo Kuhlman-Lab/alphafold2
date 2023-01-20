@@ -30,7 +30,7 @@ RELAX_MAX_OUTER_ITERATIONS = 3
 # Developer option for disabling
 DISABLE = False
 
-def af2_init(proc_id: int, arg_file: str, lengths: Sequence[Union[int, Sequence[int]]], fitness_fxn):
+def af2_init(proc_id: int, arg_file: str, lengths: Sequence[Union[int, Sequence[int]]], fitness_fxn=None):
     print('initialization of process', proc_id)
     
     os.environ['TF_FORCE_UNITED_MEMORY'] = '1'
@@ -47,11 +47,16 @@ def af2_init(proc_id: int, arg_file: str, lengths: Sequence[Union[int, Sequence[
 
     parser = getAF2Parser()
     args = parser.parse_args([f'@{arg_file}'])
+    
+    if args.use_amber:
+        print('Warning: use_amber is currently disabled due to testing. Disabling...')
+        args.use_amber = False
+    
     if not args.params_dir:
         args.params_dir = determine_weight_directory()
 
-    output_dir = getOutputDir(out_dir=args.output_dir)
-
+    output_dir = getOutputDir(out_dir=args.output_dir, suffix=f'_{proc_id}' if proc_id else None)
+    
     # Generate mock sequences
     sequences = generate_random_sequences(lengths, 1, aalist=['A'])[0]
     #print('run_af2::af2_init:', sequences)
@@ -81,17 +86,18 @@ def af2_init(proc_id: int, arg_file: str, lengths: Sequence[Union[int, Sequence[
         last_n_seqs=len(queries[-1][1]),
         use_ptm=args.use_ptm, num_models=args.num_models,
         use_multimer=not args.no_multimer_models,
-        use_v1=args.use_multimer_v1)
+        use_multimer_v1=args.use_multimer_v1,
+        use_multimer_v2=args.use_multimer_v2)
     
     query_features = []
-    for query_idx, query in enumerate(queries):
+    for query in queries:
         sequences = query[1]
     
         features_for_chain = getChainFeatures(
             sequences=sequences,
             proc_id = proc_id,
             raw_inputs=raw_inputs,
-            use_templates=args.use_templates,
+            use_templates=False,
             use_multimer=not args.no_multimer_models)
 
         input_features = getInputFeatures(
@@ -101,7 +107,6 @@ def af2_init(proc_id: int, arg_file: str, lengths: Sequence[Union[int, Sequence[
 
         query_features.append( (sequences, input_features) )
 
-    results_list = []
     for model_name in model_names:
         model_runner = getModelRunner(
             model_name=model_name,
@@ -129,8 +134,10 @@ def af2_init(proc_id: int, arg_file: str, lengths: Sequence[Union[int, Sequence[
             del sequences
 
             t = time.time()
-            result = predictStructure(
+            _ = predictStructure(
                 model_runner=model_runner,
+                model_name=model_name,
+                use_templates=False,
                 feature_dict=input_features,
                 run_multimer=run_multimer)
             print(f'Model {model_name} took {time.time()-t} sec on GPU {proc_id}.')

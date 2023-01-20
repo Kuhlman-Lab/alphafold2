@@ -169,10 +169,12 @@ if __name__ == '__main__':
                 iptm = result['iptm']
             pae_fig = plot_pae(result['pae_output'][0], Ls, ptm=ptm, iptm=iptm)
             pae_fig.savefig(pae_png)
+            pae_fig.close()
             
             # Plot pLDDTs.
             plddt_fig = plot_plddt(result['plddt'], Ls)
             plddt_fig.savefig(plddt_png)
+            plddt_fig.close()
 
         
         

@@ -14,5 +14,6 @@
 #SBATCH --mail-user=nzrandol@unc.edu
 
 source ~/.bashrc
+module load gcc; module load cuda
 conda activate af2
 python /proj/kuhl_lab/alphafold/run/run_af2.py @flags/flags_longleaf.txt
