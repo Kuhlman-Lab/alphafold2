@@ -107,6 +107,7 @@ def af2_init(proc_id: int, arg_file: str, lengths: Sequence[Union[int, Sequence[
 
         query_features.append( (sequences, input_features) )
 
+    models = []
     for model_name in model_names:
         model_runner = getModelRunner(
             model_name=model_name,
@@ -141,8 +142,10 @@ def af2_init(proc_id: int, arg_file: str, lengths: Sequence[Union[int, Sequence[
                 feature_dict=input_features,
                 run_multimer=run_multimer)
             print(f'Model {model_name} took {time.time()-t} sec on GPU {proc_id}.')
+            
+        models.append((model_name, model_runner))
 
-    af2_partial = partial(af2, arg_file=arg_file, proc_id=proc_id, fitness_fxn=fitness_fxn, compiled_runners=[(model_names[-1], model_runner)])
+    af2_partial = partial(af2, arg_file=arg_file, proc_id=proc_id, fitness_fxn=fitness_fxn, compiled_runners=models)
 
     return af2_partial
     
@@ -320,8 +323,8 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
     # Predict structures.
     for model_name in model_names:
         if compiled_runners:
-            model_runner = model_name[1]
             model_name = model_name[0]
+            model_runner = model_name[1]
         else:
             model_runner = getModelRunner(
                 model_name=model_name,
