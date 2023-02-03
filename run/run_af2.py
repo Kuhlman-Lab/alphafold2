@@ -58,7 +58,7 @@ def af2_init(proc_id: int, arg_file: str, lengths: Sequence[Union[int, Sequence[
     output_dir = getOutputDir(out_dir=args.output_dir, suffix=f'_{proc_id}' if proc_id else None)
     
     # Generate mock sequences
-    sequences = generate_random_sequences(lengths, 1, aalist=['A'])[0]
+    sequences = generate_random_sequences(lengths, 1)
     #print('run_af2::af2_init:', sequences)
 
     qm = QueryManager(
@@ -323,8 +323,8 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
     # Predict structures.
     for model_name in model_names:
         if compiled_runners:
-            model_name = model_name[0]
             model_runner = model_name[1]
+            model_name = model_name[0]
         else:
             model_runner = getModelRunner(
                 model_name=model_name,
@@ -367,6 +367,7 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
                     use_templates=args.use_templates,
                     crop_size=args.max_pad_size,
                     random_seed=seed)
+                result = result[0]
                 results_list.append(result)
                 timings[f'predict_{model_name}_{seed_idx}'] = (time.time() - t_0)
                 if proc_id is not None:

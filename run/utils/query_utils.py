@@ -29,7 +29,7 @@ AA_LIST = ['A', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'K', 'L',
            'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'V', 'W', 'Y']
 
 def generate_random_sequences(
-        length: Sequence[Union[int, Sequence[int]]],
+        lengths: Sequence[Union[int, Sequence[int]]],
         num_seq: int,
         aalist: Sequence[str] = None) -> Sequence[Sequence[str]]:
 
@@ -37,18 +37,16 @@ def generate_random_sequences(
         aalist = AA_LIST
 
     seqs_list = []
-    for _ in range(num_seq):
-        extra_list = []
-        seqs = []
-        for leng in length:
-            if isinstance(leng, int):
-                seqs.append(''.join(random.choices(aalist, k=leng)))
-            elif isinstance(leng, list):
-                for chain_length in leng:
+    for length in lengths:
+        for _ in range(num_seq):
+            seqs = []
+            if isinstance(length, int):
+                seqs.append(''.join(random.choices(aalist, k=length)))
+            elif isinstance(length, list):
+                for chain_length in length:
                     seq = ''.join(random.choices(aalist, k=chain_length))
                     seqs.append(seq)
-        extra_list.append(seqs)
-        seqs_list.append(extra_list)
+            seqs_list.append(seqs)
         
     return seqs_list
 
