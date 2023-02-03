@@ -78,6 +78,10 @@ def getAF2Parser() -> FileArgumentParser:
                         action='store_true',
                         help='Whether or not to save run times in pickle file '
                         'at the end of the run. Default is False.')
+    
+    parser.add_argument('--batch_predictions',
+                        action='store_true',
+                        help='Whether or not to batch predictions. Default is False.')
 
     parser.add_argument('--no_logging',
                         action='store_true',

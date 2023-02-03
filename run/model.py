@@ -341,48 +341,115 @@ def predictStructure(
         use_templates: bool,
         random_seed: int = random.randrange(sys.maxsize),
         crop_size: Optional[int] = None,
+        feature_dict_list = None,
         ) -> Dict[str, np.ndarray]:
     
-    processed_feature_dict = model_runner.process_features(
-        feature_dict, random_seed=random_seed)
+    if feature_dict_list:
+        #find max length of sequences and make that the crop size
+        processed_feature_dict_list = {}
+        max_seq_len = 0
+        for fdict in feature_dict_list:
+            processed_feature_dict = model_runner.process_features(fdict, random_seed=random_seed)
+            if not run_multimer:
+                seq_len = processed_feature_dict['aatype'].shape[1]
+            else:
+                seq_len = processed_feature_dict['seq_length']
+            if seq_len > max_seq_len:
+                max_seq_len = seq_len
 
-    if not run_multimer:
-        seq_len = processed_feature_dict['aatype'].shape[1]
+        crop_size = max_seq_len
+
+        #loop over query features, make same size, batch them
+        for fdict in feature_dict_list:
+            processed_feature_dict = model_runner.process_features(fdict, random_seed=random_seed)
+            processed_feature_dict = batch_input(processed_feature_dict, model_runner, model_name, crop_size, use_templates, run_multimer)
+
+            for feature in processed_feature_dict:
+                if feature not in processed_feature_dict_list:
+                    processed_feature_dict_list[feature] = [processed_feature_dict[feature]]
+                else:
+                    np.append(processed_feature_dict_list[feature], processed_feature_dict[feature])
+
+            for feature in processed_feature_dict_list:
+                processed_feature_dict_list[feature] = np.array(processed_feature_dict_list[feature])
+
+        predictions = model_runner.predict(processed_feature_dict_list, random_seed=random_seed)
+
+        results = []
+        for prediction in predictions:
+            result = {}
+
+            if 'predicted_aligned_error' in prediction:
+                result['pae_output'] = (prediction['predicted_aligned_error'],
+                                        prediction['max_predicted_aligned_error'])
+
+            result['ranking_confidence'] = prediction['ranking_confidence']
+            result['plddt'] = prediction['plddt']
+            result['structure_module'] = prediction['structure_module']
+
+            if 'ptm' in prediction:
+                result['ptm'] = prediction['ptm']
+
+            if 'iptm' in prediction:
+                result['iptm'] = prediction['iptm']
+
+            if crop_size:
+                result['plddt'] = result['plddt'][:seq_len]
+                result['pae_output'] = (result['pae_output'][0][:seq_len, :seq_len], result['pae_output'][1])
+
+            b_factors = np.repeat(
+                prediction['plddt'][:, None], residue_constants.atom_type_num, axis=-1)
+            result['unrelaxed_protein'] = protein.from_prediction(
+                features=processed_feature_dict,
+                result=prediction,
+                b_factors=b_factors,
+                remove_leading_feature_dimension=not run_multimer)
+
+            results.append(result)
+
     else:
-        seq_len = processed_feature_dict['seq_length']
+        processed_feature_dict = model_runner.process_features(
+            feature_dict, random_seed=random_seed)
 
-    if crop_size:
-        processed_feature_dict = batch_input(processed_feature_dict, model_runner, model_name, crop_size, use_templates, run_multimer)
+        if not run_multimer:
+            seq_len = processed_feature_dict['aatype'].shape[1]
+        else:
+            seq_len = processed_feature_dict['seq_length']
 
-    prediction = model_runner.predict(
-        processed_feature_dict, random_seed=random_seed)
+        if crop_size:
+            processed_feature_dict = batch_input(processed_feature_dict, model_runner, model_name, crop_size, use_templates, run_multimer)
 
-    result = {}
+        prediction = model_runner.predict(
+            processed_feature_dict, random_seed=random_seed)
+
+        result = {}
+        
+        if 'predicted_aligned_error' in prediction:
+            result['pae_output'] = (prediction['predicted_aligned_error'],
+                                    prediction['max_predicted_aligned_error'])
+
+        result['ranking_confidence'] = prediction['ranking_confidence']
+        result['plddt'] = prediction['plddt']
+        result['structure_module'] = prediction['structure_module']
+
+        if 'ptm' in prediction:
+            result['ptm'] = prediction['ptm']
+
+        if 'iptm' in prediction:
+            result['iptm'] = prediction['iptm']
+
+        if crop_size:
+            result['plddt'] = result['plddt'][:seq_len]
+            result['pae_output'] = (result['pae_output'][0][:seq_len, :seq_len], result['pae_output'][1])
+
+        b_factors = np.repeat(
+            prediction['plddt'][:, None], residue_constants.atom_type_num, axis=-1)
+        result['unrelaxed_protein'] = protein.from_prediction(
+            features=processed_feature_dict,
+            result=prediction,
+            b_factors=b_factors,
+            remove_leading_feature_dimension=not run_multimer)
+
+        results = [result]
     
-    if 'predicted_aligned_error' in prediction:
-        result['pae_output'] = (prediction['predicted_aligned_error'],
-                                prediction['max_predicted_aligned_error'])
-
-    result['ranking_confidence'] = prediction['ranking_confidence']
-    result['plddt'] = prediction['plddt']
-    result['structure_module'] = prediction['structure_module']
-
-    if 'ptm' in prediction:
-        result['ptm'] = prediction['ptm']
-
-    if 'iptm' in prediction:
-        result['iptm'] = prediction['iptm']
-
-    if crop_size:
-        result['plddt'] = result['plddt'][:seq_len]
-        result['pae_output'] = (result['pae_output'][0][:seq_len, :seq_len], result['pae_output'][1])
-
-    b_factors = np.repeat(
-        prediction['plddt'][:, None], residue_constants.atom_type_num, axis=-1)
-    result['unrelaxed_protein'] = protein.from_prediction(
-        features=processed_feature_dict,
-        result=prediction,
-        b_factors=b_factors,
-        remove_leading_feature_dimension=not run_multimer)
-    
-    return result
+    return results
