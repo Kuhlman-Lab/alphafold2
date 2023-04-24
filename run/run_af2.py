@@ -30,11 +30,12 @@ RELAX_MAX_OUTER_ITERATIONS = 3
 # Developer option for disabling
 DISABLE = False
 
+
 def af2_init(proc_id: int, arg_file: str, lengths: Sequence[Union[int, Sequence[int]]], fitness_fxn=None):
     print('initialization of process', proc_id)
     
     os.environ['TF_FORCE_UNITED_MEMORY'] = '1'
-    os.environ['XLA_PYTHON_CLIENT_MEM_FRACTION'] = '2.0'
+    os.environ['XLA_PYTHON_CLIENT_MEM_FRACTION'] = '4.0'
     os.environ['TF_XLA_FLAGS'] = '--tf_xla_cpu_global_jit'
     os.environ['CUDA_VISIBLE_DEVICES'] = str(proc_id)
 
@@ -457,9 +458,10 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
         if args.design_run:
             return results_list
 
+
 if __name__ == '__main__':
     os.environ['TF_FORCE_UNITED_MEMORY'] = '1'
-    os.environ['XLA_PYTHON_CLIENT_MEM_FRACTION'] = '2.0'
+    os.environ['XLA_PYTHON_CLIENT_MEM_FRACTION'] = '4.0'
     os.environ['TF_XLA_FLAGS'] = '--tf_xla_cpu_global_jit'
     
     af2()
