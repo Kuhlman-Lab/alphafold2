@@ -40,7 +40,10 @@ if __name__ == "__main__":
                         'Environmental databases with mmseqs2 to generate the MSA.')
     parser.add_argument('--output_dir', type=str, default='./', help='Where to write the output .a3m MSA files.')
     parser.add_argument('--out_file', type=str, default='mmseqs2_msa', help='What the output MSA file should be named.')
-    
+    parser.add_argument('--min_length', type=int, default=50, help='Minimum length of MSA matches returned.')
+    parser.add_argument('--max_length', type=int, default=10000, help='Maximum length of MSA matches returned.')
+    parser.add_argument('--max_multimer_length', type=int, default=25000, help='Maximum length of MSA multimer matches.')
+
     args = parser.parse_args()
     
     # Get MSAs

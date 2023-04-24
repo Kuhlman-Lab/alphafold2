@@ -368,10 +368,11 @@ def predictStructure(
                 if feature not in processed_feature_dict_list:
                     processed_feature_dict_list[feature] = [processed_feature_dict[feature]]
                 else:
-                    np.append(processed_feature_dict_list[feature], processed_feature_dict[feature])
+                    processed_feature_dict_list[feature].append(processed_feature_dict[feature])
 
-            for feature in processed_feature_dict_list:
-                processed_feature_dict_list[feature] = np.array(processed_feature_dict_list[feature])
+        for feature in processed_feature_dict_list:
+            processed_feature_dict_list[feature] = np.array(processed_feature_dict_list[feature])
+            print(feature, processed_feature_dict_list[feature].shape)
 
         predictions = model_runner.predict(processed_feature_dict_list, random_seed=random_seed)
 

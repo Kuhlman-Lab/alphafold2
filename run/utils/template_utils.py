@@ -363,7 +363,8 @@ def validate_and_fix_mmcif(cif_file: Path):
   ]
   for r in required:
     if r not in cif_dict:
-      raise ValueError(f"mmCIF file {cif_file} is missing required field {r}.")
+      cif_dict[r] = '?'
+      #raise ValueError(f"mmCIF file {cif_file} is missing required field {r}.")
   if "_pdbx_audit_revision_history.revision_date" not in cif_dict:
     logger.info(
       f"Adding missing field revision_date to {cif_file}. Backing up original file to {cif_file}.bak."
@@ -433,7 +434,7 @@ def mk_hhsearch_db(template_dir: str, proc_id: Optional[int] = None):
         for res in chain:
           if res.id[2] != " ":
             raise ValueError(
-              f"PDB contains an insertion code at chain {chain.id} and residue "
+              f"PDB ({cif_file}) contains an insertion code at chain {chain.id} and residue "
               f"index {res.id[1]}. These are not supported."
             )
           amino_acid_res.append(
