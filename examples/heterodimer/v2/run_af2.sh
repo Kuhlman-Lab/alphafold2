@@ -11,7 +11,7 @@
 #SBATCH --output=slurm-%j-%x.out
 #SBATCH --error=slurm-%j-%x.out
 #SBATCH --mail-type=BEGIN,END,FAIL
-#SBATCH --mail-user=nzrandol@unc.edu
+#SBATCH --mail-user=user@email.com
 
 source ~/.bashrc
 module load gcc; module load cuda
