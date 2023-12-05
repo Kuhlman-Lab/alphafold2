@@ -4,3 +4,4 @@
 **/build
 setup/conda_env/*
 alphafold/data/params/*
+alphafold/build/*
