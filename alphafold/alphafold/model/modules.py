@@ -287,7 +287,8 @@ class AlphaFold(hk.Module):
       is_training,
       compute_loss=False,
       ensemble_representations=False,
-      return_representations=False):
+      return_representations=False,
+      initial_guess=None):
     """Run the AlphaFold model.
 
     Arguments:
@@ -325,7 +326,8 @@ class AlphaFold(hk.Module):
 
     def do_call(prev,
                 recycle_idx,
-                compute_loss=compute_loss):
+                compute_loss=compute_loss,
+                initial_guess=None):
       if self.config.resample_msa_in_recycling:
         num_ensemble = batch_size
         def slice_recycle_idx(x):
@@ -346,6 +348,7 @@ class AlphaFold(hk.Module):
           compute_loss=compute_loss,
           ensemble_representations=ensemble_representations)
 
+    """
     prev = {}
     emb_config = self.config.embeddings_and_evoformer
     if emb_config.recycle_pos:
@@ -356,8 +359,24 @@ class AlphaFold(hk.Module):
           [num_residues, emb_config.msa_channel])
       prev['prev_pair'] = jnp.zeros(
           [num_residues, num_residues, emb_config.pair_channel])
-
+    """
     if self.config.num_recycle:
+      emb_config = self.config.embeddings_and_evoformer
+      
+      # Nate insertion
+      prev_pos=jnp.zeros(
+              [num_residues, residue_constants.atom_type_num, 3])
+      if initial_guess is not None:
+        print("Initializing positions with provided initial guess")
+        prev_pos += initial_guess
+
+      prev = {
+          'prev_pos' : prev_pos,
+          'prev_msa_first_row': jnp.zeros(
+              [num_residues, emb_config.msa_channel]),
+          'prev_pair': jnp.zeros(
+              [num_residues, num_residues, emb_config.pair_channel]),
+      }
       if 'num_iter_recycling' in batch:
         # Training time: num_iter_recycling is in batch.
         # The value for each ensemble batch is the same, so arbitrarily taking
@@ -405,6 +424,7 @@ class AlphaFold(hk.Module):
             recycle_body,
             (0, prev, prev))
     else:
+      prev = {}
       num_recycles = 0
 
     ret = do_call(prev=prev, recycle_idx=num_recycles)
