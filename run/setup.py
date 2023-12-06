@@ -7,7 +7,7 @@ import os
 import argparse
 import pathlib
 from typing import Sequence, Union, Optional
-from utils import query_utils
+from run.utils import query_utils
 
 class FileArgumentParser(argparse.ArgumentParser):
     """Overwrites default ArgumentParser to better handle flag files."""
@@ -92,6 +92,11 @@ def getAF2Parser() -> FileArgumentParser:
                         help='Whether or not AF2 predictions are being used '
                         'in a design run. Disables most outputs unless '
                         'manually overrided.')
+    
+    parser.add_argument('--initial_guess',
+                         type=str,
+                         default=None,
+                         help='Path and filename of initial guess PDB file.')
 
     # Sequence Control Arguments
     parser.add_argument('--min_length',

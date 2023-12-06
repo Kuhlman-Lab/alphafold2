@@ -34,20 +34,32 @@ DISABLE = False
 def af2_init(proc_id: int, arg_file: str, lengths: Sequence[Union[int, Sequence[int]]], fitness_fxn=None):
     print('initialization of process', proc_id)
     
+    #print("setting variables")
     os.environ['TF_FORCE_UNITED_MEMORY'] = '1'
+    #print("TF_FORCE_UNITED_MEMORY")
     os.environ['XLA_PYTHON_CLIENT_MEM_FRACTION'] = '4.0'
+    #print("XLA_PYTHON_CLIENT_MEM_FRACTION")
     os.environ['TF_XLA_FLAGS'] = '--tf_xla_cpu_global_jit'
+    #print("TF_XLA_FLAGS")
     os.environ['CUDA_VISIBLE_DEVICES'] = str(proc_id)
-
+    #print("CUDA_VISIBLE_DEVICES")
+    
+    #print("importing jax")
     import jax
+    #print("importing features")
     from features import (
         getRawInputs, getChainFeatures, getInputFeatures)
-    from setup import (getAF2Parser, QueryManager, getOutputDir)
+
+    
+    #print("importing model")
     from model import (getModelNames, getModelRunner, predictStructure)
+    #print("importing utils")
     from utils.query_utils import generate_random_sequences
 
+    #print("parsing args", arg_file)
     parser = getAF2Parser()
     args = parser.parse_args([f'@{arg_file}'])
+    #print("args parsed", args)
     
     if args.use_amber:
         print('Warning: use_amber is currently disabled due to testing. Disabling...')
@@ -100,8 +112,8 @@ def af2_init(proc_id: int, arg_file: str, lengths: Sequence[Union[int, Sequence[
             raw_inputs=raw_inputs,
             use_templates=False,
             use_multimer=not args.no_multimer_models)
-
-        input_features = getInputFeatures(
+        
+        input_features, initial_guess = getInputFeatures(
             sequences=sequences,
             chain_features=features_for_chain,
             use_multimer=not args.no_multimer_models)
@@ -177,12 +189,14 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
     output_dir = getOutputDir(out_dir=args.output_dir, suffix=f'_{proc_id}' if proc_id else None)
     
     # Set up logger
+    logger = logging.getLogger("run_af2")
     if not args.no_logging and not args.design_run:
-        logging.basicConfig(filename=os.path.join(output_dir, 'prediction.log'),
-                            level=logging.INFO)
+        logger.setLevel(logging.INFO)
+        logger.addHandler(
+            logging.FileHandler(os.path.join(output_dir, "prediction.log"))
+        )
     else:
-        logging.basicConfig(filename=os.path.join(output_dir, 'prediction.log'))
-    logger = logging.getLogger('run_af2')
+        logger.setLevel(logging.NOTSET)
 
     # Update environmental variables.
     if proc_id != None:
@@ -223,7 +237,6 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
 
     queries = qm.queries
     logger.info(f'Queries have been parsed. {len(queries)} queries found.')
-    #print(queries)
     del qm
 
     # Input checking to make sure that sequences are shorter than the max_pad_size
@@ -231,7 +244,7 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
         query_lens = [sum([len(s) for s in q[1]]) for q in queries]
         max_query_len = max(query_lens)
         if max_query_len > args.max_pad_size:
-            logger.warning('Length of the longest query is greater than the max_pad_size. Ignoring max_pad_size.')
+            logger.warning(f'Length of the longest query ({max_query_len})is greater than the max_pad_size ({args.max_pad_size}). Updating max_pad_size to match longest query.')
             args.max_pad_size = max_query_len
 
     # Create artificial hhsearch db for custom templates
@@ -251,7 +264,6 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
         output_dir=output_dir,
         design_run=args.design_run,
         proc_id=proc_id)
-    #print(raw_inputs_from_sequence)
 
     timings['raw_inputs'] = time.time() - t_0
     logger.info(f'Raw inputs have been generated. Took '
@@ -296,17 +308,18 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
             use_multimer=not args.no_multimer_models,
             proc_id=proc_id,
             max_template_date=args.max_template_date)
-
-        input_features = getInputFeatures(
+        #quit()
+        input_features, initial_guess = getInputFeatures(
             sequences=sequences,
             chain_features=features_for_chain,
-            use_multimer=not args.no_multimer_models)
+            use_multimer=not args.no_multimer_models,
+            initial_guess=args.initial_guess)
         
         timings[f'features_{query_idx}'] = time.time() - t_0
         logger.info(f'Features for query {query_idx} have been generated. Took '
                     f'{timings[f"features_{query_idx}"]} seconds.')
 
-        query_features.append( (prefix, sequences, input_features) )
+        query_features.append( (prefix, sequences, input_features, initial_guess) )
 
     # Get model names.
     if not compiled_runners:
@@ -345,6 +358,7 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
         for query_idx, query in enumerate(query_features):
             prefix = query[0] + f'_{model_name}'
             sequences = query[1]
+            initial_guess=query[3]
 
             if len(sequences) > 1 and not run_multimer:
                 if not args.no_multimer_models:
@@ -367,7 +381,8 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
                     run_multimer=run_multimer,
                     use_templates=args.use_templates,
                     crop_size=args.max_pad_size,
-                    random_seed=seed)
+                    random_seed=seed,
+                    initial_guess=initial_guess)
                 result = result[0]
                 results_list.append(result)
                 timings[f'predict_{model_name}_{seed_idx}'] = (time.time() - t_0)

@@ -42,7 +42,6 @@ def plot_pae(pae, Ls=None, dpi=100, fig=True, ptm=None, iptm=None):
 
 def plot_plddt(plddt, Ls=None, dpi=100, fig=True):
     if fig: plt.figure(figsize=(8,5), dpi=100)
-    plt.title(f'Predicted lDDT per position. Mean = {np.mean(plddt):.3f}')
     plt.plot(plddt)
     if Ls is not None:
         L_prev = 0
@@ -53,6 +52,13 @@ def plot_plddt(plddt, Ls=None, dpi=100, fig=True):
     plt.ylim(0, 100)
     plt.ylabel('Predicted lDDT')
     plt.xlabel('Positions')
+    if Ls is not None:
+        chain_means = []
+        offset = 0
+        for L in Ls:
+            chain_means.append(np.mean(plddt[offset:L+offset]))
+            offset += L
+    plt.title(f'Predicted lDDT per position. Mean = {np.mean(plddt):.3f}. Chains={[round(m, 3) for m in chain_means]}')
     plt.grid()
     return plt
 

@@ -12,6 +12,8 @@ import copy
 import numpy as np
 import logging
 import shutil
+import pickle
+import jax.numpy as jnp
 from alphafold.data import parsers
 from alphafold.data import pipeline
 from alphafold.data import pipeline_multimer
@@ -19,7 +21,7 @@ from alphafold.data import feature_processing
 from alphafold.data import templates
 from alphafold.data import msa_pairing
 from alphafold.data.tools import hhsearch
-from alphafold.common import protein
+from alphafold.common import protein, residue_constants
 from alphafold.notebooks import notebook_utils
 
 from typing import Sequence, Optional, Dict, Tuple, MutableMapping, Union
@@ -29,7 +31,7 @@ from utils import template_utils, utils
 logger = logging.getLogger('features')
 
 # (filename, [sequence])
-CleanQuery = Tuple[str, str]
+CleanQuery = Tuple[str, Sequence[str]]
 
 # {sequence: (raw MSA, raw templates)}
 RawInput = Dict[str, Tuple[str, str]]
@@ -55,9 +57,8 @@ def getRawInputs(
     # Gather unique sequences to run MMseqs2 in a batch.
     unique_sequences = []
     for query in queries:
-        filename = query[0]
+
         seqs = query[1]
-        
         for seq in seqs:
             if seq not in unique_sequences:
                 unique_sequences.append(seq)
@@ -103,7 +104,6 @@ def getRawInputs(
                 final_custom_msas[seq] = custom_msas[seq]
         custom_msas = final_custom_msas
             
-
     # If not using templates and custom MSA provided, remove sequence from
     # MMseqs2 queue.
     if not use_templates and custom_msas != {}:
@@ -296,7 +296,7 @@ def runMMseqs2(
         with tarfile.open(tar_gz_file) as tar_gz:
             tar_gz.extractall(out_path)
 
-    # Get templates if necessary.
+    # Get templates if necessary. 
     if use_templates:
         templates = {}
         
@@ -538,10 +538,11 @@ def getChainFeatures(
         use_multimer = True,
         max_template_date='2100-01-01') -> MutableMapping[str, pipeline.FeatureDict]:
     features_for_chain = {}
-    #print(sequences)
+
     if len(sequences) == 1 or use_multimer:
         for sequence_idx, sequence in enumerate(sequences):
             feature_dict = {}
+            
             # Get sequence features
             feature_dict.update(pipeline.make_sequence_features(
                 sequence=sequence, description='query', num_res=len(sequence)))
@@ -565,35 +566,27 @@ def getChainFeatures(
                 feature_dict.update(all_seq_features)
         
             # Get template features
-            if use_templates:
-                new_raw_inputs = copy.deepcopy(raw_inputs[sequence])
-                a3m = new_raw_inputs[0]
-                template = new_raw_inputs[1]
+            new_raw_inputs = copy.deepcopy(raw_inputs[sequence])
+            a3m = new_raw_inputs[0]
+            template = new_raw_inputs[1]
 
-                if template == None:
+            if template == None:
+                feature_dict.update(
+                    notebook_utils.empty_placeholder_template_features(
+                        num_templates=0, num_res=len(sequence)))
+            else:
+                temp_feats = make_template(sequence, a3m, template, proc_id, max_template_date)
+                empty_temp = False
+                for k in temp_feats:
+                    if temp_feats[k].size == 0:
+                        empty_temp = True
+                        break
+                if empty_temp:
                     feature_dict.update(
                         notebook_utils.empty_placeholder_template_features(
                             num_templates=0, num_res=len(sequence)))
                 else:
-                    temp_feats = make_template(sequence, a3m, template, proc_id, max_template_date)
-                    
-                    empty_temp = False
-                    for k in temp_feats:
-                        if temp_feats[k].size == 0:
-                            empty_temp = True
-                            break
-
-                    if empty_temp:
-                        feature_dict.update(
-                            notebook_utils.empty_placeholder_template_features(
-                                num_templates=0, num_res=len(sequence)))
-                    else:
-                        feature_dict.update(temp_feats)
-            else:
-                feature_dict.update(
-                    notebook_utils.empty_placeholder_template_features(
-                        num_templates=0, num_res=len(sequence)))
-
+                    feature_dict.update(temp_feats)
             features_for_chain[
                 protein.PDB_CHAIN_IDS[sequence_idx]] = feature_dict
     else:
@@ -691,11 +684,41 @@ def getInputFeatures(
         chain_features: MutableMapping[str, pipeline.FeatureDict],
         min_num_seq: int = 512,
         use_multimer: bool = True,
+        initial_guess = None
         ) -> Union[pipeline.FeatureDict,
                    MutableMapping[str, pipeline.FeatureDict]]:
 
+    if not initial_guess:
+        initial_guess_parsed=None
+    else:
+        initial_guess_parsed = parsers.parse_initial_guess(initial_guess)
+        #print("Parsed initial guess")
+        
     if len(sequences) == 1 or not use_multimer:
-        return chain_features[protein.PDB_CHAIN_IDS[0]]
+        if initial_guess_parsed is not None and len(sequences) == 1:
+            # Find chain breaks in initial_guess_parsed
+            chain_breaks = check_residue_distances(
+                initial_guess_parsed,
+                jnp.ones(initial_guess_parsed.shape[:-1])
+            )
+            #print("Chain breaks:", chain_breaks)
+            
+            # Convert chain breaks to Ls
+            if len(chain_breaks) > 0:
+                Ls = [chain_breaks[0]]
+                for i in range(1, len(chain_breaks)):
+                    Ls.append(chain_breaks[i] - chain_breaks[i-1])
+                Ls.append(len(sequences[0]) - chain_breaks[-1])
+            else:
+                Ls = len(sequences[0])
+                
+            # Update residue_index
+            #print("Initial residue index:", chain_features[protein.PDB_CHAIN_IDS[0]]['residue_index'])
+            chain_features[protein.PDB_CHAIN_IDS[0]]['residue_index'] = chain_break(
+                chain_features[protein.PDB_CHAIN_IDS[0]]['residue_index'], Ls)
+            #print("Updated residue index:", chain_features[protein.PDB_CHAIN_IDS[0]]['residue_index'])
+        
+        return chain_features[protein.PDB_CHAIN_IDS[0]], initial_guess_parsed
     else:
         all_chain_features = {}
         for chain_id, features in chain_features.items():
@@ -711,7 +734,27 @@ def getInputFeatures(
 
         # Pad MSA to avoid zero-size extra MSA.
         return pipeline_multimer.pad_msa(input_features,
-                                         min_num_seq=min_num_seq)
+                                         min_num_seq=min_num_seq), initial_guess_parsed
+
+
+def check_residue_distances(all_positions, all_positions_mask, max_amide_distance=3.0):
+    breaks = []
+    
+    c_position = residue_constants.atom_order['C']
+    n_position = residue_constants.atom_order['N']
+    prev_is_unmasked = False
+    for i, (coords, mask) in enumerate(zip(all_positions, all_positions_mask)):
+        if bool(mask[c_position]) and bool(mask[n_position]):
+            if prev_is_unmasked:
+                dist = np.sqrt(np.sum((coords[n_position] - prev_c)**2))
+                if dist > max_amide_distance:
+                    breaks.append(i)
+            prev_c = coords[c_position]
+            prev_is_unmasked = True
+        else:
+            prev_is_unmasked = False
+            
+    return breaks
 
 
 def make_template(
@@ -721,7 +764,7 @@ def make_template(
         proc_id = None,
         max_template_date = '2100-01-01'):
 
-    template_featurizer = template_utils.TemplateHitFeaturizer(
+    template_featurizer = templates.HhsearchHitFeaturizer(
             mmcif_dir=template_paths,
             max_template_date=max_template_date,
             max_hits=20,
@@ -737,12 +780,15 @@ def make_template(
     hhsearch_pdb70_runner = hhsearch.HHSearch(
         binary_path='hhsearch',
         databases=databases)
-
+    #print(a3m_lines)
     hhsearch_result = hhsearch_pdb70_runner.query(a3m_lines)
+    #print(hhsearch_result)
     hhsearch_hits = parsers.parse_hhr(hhsearch_result)
+    #with open('hhsearch_hits.pkl', 'wb') as f:
+    #    pickle.dump(hhsearch_hits[0], f)
+    #print(hhsearch_hits)
     templates_result = template_featurizer.get_templates(
         query_sequence=query_sequence,
-        query_release_date=None,
         hits=hhsearch_hits)
-
+    #print(templates_result.features['template_domain_names'])
     return templates_result.features

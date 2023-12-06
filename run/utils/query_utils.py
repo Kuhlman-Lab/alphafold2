@@ -132,7 +132,6 @@ def _clean_and_validate_single_query(
     """
     filename = query[0]
     sequences = query[-1]
-    
     if filename == '_INPUT_':
         oligomer = ''
     else:
@@ -162,10 +161,11 @@ def _clean_and_validate_single_query(
                 f'non-amino acid letters: {set(clean_sequence) - aatypes}. '
                 f'AlphaFold only supports 20 standard amino acids as inputs.')
         if len(clean_sequence) < min_length:
-            raise ValueError(
+            logger.warn(
                 f'Query parsed from {clean_filename} has a sequence that is '
                 f'too short: {len(clean_sequence)} amino acids, while the '
                 f'minimum is {min_length}.')
+            continue
         if len(clean_sequence) > max_length:
             raise ValueError(
                 f'Query parsed from {clean_filename} has a sequence that is '

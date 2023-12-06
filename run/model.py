@@ -342,6 +342,7 @@ def predictStructure(
         random_seed: int = random.randrange(sys.maxsize),
         crop_size: Optional[int] = None,
         feature_dict_list = None,
+        initial_guess=None
         ) -> Dict[str, np.ndarray]:
     
     if feature_dict_list:
@@ -374,7 +375,7 @@ def predictStructure(
             processed_feature_dict_list[feature] = np.array(processed_feature_dict_list[feature])
             print(feature, processed_feature_dict_list[feature].shape)
 
-        predictions = model_runner.predict(processed_feature_dict_list, random_seed=random_seed)
+        predictions = model_runner.predict(processed_feature_dict_list, random_seed=random_seed, initial_guess=initial_guess)
 
         results = []
         for prediction in predictions:
@@ -421,7 +422,7 @@ def predictStructure(
             processed_feature_dict = batch_input(processed_feature_dict, model_runner, model_name, crop_size, use_templates, run_multimer)
 
         prediction = model_runner.predict(
-            processed_feature_dict, random_seed=random_seed)
+            processed_feature_dict, random_seed=random_seed, initial_guess=initial_guess)
 
         result = {}
         
