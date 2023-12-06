@@ -73,19 +73,21 @@ class RunModel:
     self.multimer_mode = config.model.global_config.multimer_mode
 
     if self.multimer_mode:
-      def _forward_fn(batch):
+      def _forward_fn(batch, initial_guess=None):
         model = modules_multimer.AlphaFold(self.config.model)
         return model(
             batch,
-            is_training=is_training)
+            is_training=is_training,
+            initial_guess=initial_guess)
     else:
-      def _forward_fn(batch):
+      def _forward_fn(batch, initial_guess=None):
         model = modules.AlphaFold(self.config.model)
         return model(
             batch,
             is_training=is_training,
             compute_loss=False,
-            ensemble_representations=True)
+            ensemble_representations=True,
+            initial_guess=initial_guess)
 
     self.apply = jax.jit(hk.transform(_forward_fn).apply)
     self.init = jax.jit(hk.transform(_forward_fn).init)
@@ -150,6 +152,7 @@ class RunModel:
   def predict(self,
               feat: features.FeatureDict,
               random_seed: int,
+              initial_guess=None
               ) -> Tuple[Mapping[str, Any], Tuple[int, float]]:
     """Makes a prediction by inferencing the model on the provided features.
 
@@ -166,7 +169,7 @@ class RunModel:
     self.init_params(feat)
     logging.info('Running predict with shape(feat) = %s',
                  tree.map_structure(lambda x: x.shape, feat))
-    result = self.apply(self.params, jax.random.PRNGKey(random_seed), feat)
+    result = self.apply(self.params, jax.random.PRNGKey(random_seed), feat, initial_guess)
     
     # This block is to ensure benchmark timings are accurate. Some blocking is
     # already happening when computing get_confidence_metrics, and this ensures

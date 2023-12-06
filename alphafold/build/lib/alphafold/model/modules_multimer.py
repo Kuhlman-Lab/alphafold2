@@ -422,7 +422,8 @@ class AlphaFold(hk.Module):
       batch,
       is_training,
       return_representations=False,
-      safe_key=None):
+      safe_key=None,
+      initial_guess=None):
 
     c = self.config
     impl = AlphaFoldIteration(c, self.global_config)
@@ -450,9 +451,9 @@ class AlphaFold(hk.Module):
           batch=recycled_batch,
           is_training=is_training,
           safe_key=safe_key)
-      
-    prev = {}
-    emb_config = self.config.embeddings_and_evoformer
+    
+    """
+    
     if emb_config.recycle_pos:
       prev['prev_pos'] = jnp.zeros(
           [num_res, residue_constants.atom_type_num, 3])
@@ -461,8 +462,23 @@ class AlphaFold(hk.Module):
           [num_res, emb_config.msa_channel])
       prev['prev_pair'] = jnp.zeros(
           [num_res, num_res, emb_config.pair_channel])
-
+    """
+    
     if self.config.num_recycle:
+      emb_config = self.config.embeddings_and_evoformer
+      # Nate insertion
+      prev_pos=jnp.zeros(
+              [num_res, residue_constants.atom_type_num, 3])
+      if initial_guess is not None:
+        prev_pos += initial_guess
+
+      prev = {
+          'prev_pos' : prev_pos,
+          'prev_msa_first_row': jnp.zeros(
+              [num_res, emb_config.msa_channel]),
+          'prev_pair': jnp.zeros(
+              [num_res, num_res, emb_config.pair_channel]),
+      }
       if 'num_iter_recycling' in batch:
         # Training time: num_iter_recycling is in batch.
         # Value for each ensemble batch is the same, so arbitrarily taking 0-th.
@@ -511,6 +527,7 @@ class AlphaFold(hk.Module):
             (0, prev, prev, safe_key))
     else:
       # No recycling.
+      prev= {}
       num_recycles = 0
 
     # Run extra iteration.

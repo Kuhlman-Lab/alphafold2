@@ -6,6 +6,7 @@ Home-page: https://github.com/deepmind/alphafold
 Author: DeepMind
 Author-email: alphafold@deepmind.com
 License: Apache License, Version 2.0
+Platform: UNKNOWN
 Classifier: Development Status :: 5 - Production/Stable
 Classifier: Intended Audience :: Science/Research
 Classifier: License :: OSI Approved :: Apache Software License
@@ -17,3 +18,6 @@ Classifier: Programming Language :: Python :: 3.9
 Classifier: Programming Language :: Python :: 3.10
 Classifier: Topic :: Scientific/Engineering :: Artificial Intelligence
 License-File: LICENSE
+
+UNKNOWN
+

@@ -18,7 +18,11 @@ import dataclasses
 import itertools
 import re
 import string
+import numpy as np
+import jax.numpy as jnp
+from alphafold.common import residue_constants
 from typing import Dict, Iterable, List, Optional, Sequence, Tuple, Set
+
 
 DeletionMatrix = Sequence[Sequence[int]]
 
@@ -60,6 +64,75 @@ class TemplateHit:
   hit_sequence: str
   indices_query: List[int]
   indices_hit: List[int]
+
+  
+def get_atom_positions(lines):
+  """ For initial guess. Modified from dl_binder_design/af2_initial_guess/af2_util.py
+      (https://github.com/nrbennet/dl_binder_design/tree/main)
+  """
+  idx_s = [int(l[22:26]) for l in lines if l[:4]=="ATOM" and l[12:16].strip()=="CA"]
+  num_res = len(idx_s)
+
+  all_positions = np.zeros([num_res, residue_constants.atom_type_num, 3])
+  all_positions_mask = np.zeros([num_res, residue_constants.atom_type_num],
+                              dtype=np.int64)
+
+  residues = collections.defaultdict(list)
+  # 4 BB + up to 10 SC atoms
+  xyz = np.full((len(idx_s), 14, 3), np.nan, dtype=np.float32)
+  for l in lines:
+      if l[:4] != "ATOM":
+          continue
+      resNo, atom, aa = int(l[22:26]), l[12:16], l[17:20]
+
+      residues[ resNo ].append( ( atom.strip(), aa, [float(l[30:38]), float(l[38:46]), float(l[46:54])] ) )
+
+  for resNo in residues:
+
+      pos = np.zeros([residue_constants.atom_type_num, 3], dtype=np.float32)
+      mask = np.zeros([residue_constants.atom_type_num], dtype=np.float32)
+
+      for atom in residues[ resNo ]:
+          atom_name = atom[0]
+          x, y, z = atom[2]
+          if atom_name in residue_constants.atom_order.keys():
+              pos[residue_constants.atom_order[atom_name]] = [x, y, z]
+              mask[residue_constants.atom_order[atom_name]] = 1.0
+          
+          #TODO: check if this is needed
+          """elif atom_name.upper() == 'SE' and res.get_resname() == 'MSE':
+              # Put the coordinates of the selenium atom in the sulphur column.
+              pos[residue_constants.atom_order['SD']] = [x, y, z]
+              mask[residue_constants.atom_order['SD']] = 1.0"""
+
+      idx = idx_s.index(resNo) # This is the order they show up in the pdb
+      all_positions[idx] = pos
+      all_positions_mask[idx] = mask
+
+  return all_positions, all_positions_mask
+
+
+def parse_initial_guess(initial_guess_pdbfile):
+  """ For initial guess. Modified from dl_binder_design/af2_initial_guess/af2_util.py
+      Parses initial guess PDB file to get all atom positions, then returns a jax array of the initial guess.
+  """
+  with open(initial_guess_pdbfile, "r") as f:
+    lines = f.readlines()
+    
+  all_atom_positions, all_atom_positions_masks = get_atom_positions(lines)
+
+  list_all_atom_positions = np.split(all_atom_positions, all_atom_positions.shape[0])
+
+  templates_all_atom_positions = []
+
+  # Initially fill with zeros
+  for _ in list_all_atom_positions:
+      templates_all_atom_positions.append(jnp.zeros((residue_constants.atom_type_num, 3)))
+
+  for idx in range(len(list_all_atom_positions)):
+      templates_all_atom_positions[idx] = list_all_atom_positions[idx][0] 
+
+  return jnp.array(templates_all_atom_positions)
 
 
 def parse_fasta(fasta_string: str) -> Tuple[Sequence[str], Sequence[str]]:
@@ -275,7 +348,7 @@ def truncate_stockholm_msa(stockholm_msa_path: str, max_sequences: int) -> str:
   """Reads + truncates a Stockholm file while preventing excessive RAM usage."""
   seqnames = set()
   filtered_lines = []
-  with open(stockhold_msa_path) as f:
+  with open(stockholm_msa_path) as f:
     for line in f:
       if line.strip() and not line.startswith(('#', '//')):
         # Ignore blank lines, markup and end symbols - remainder are alignment
