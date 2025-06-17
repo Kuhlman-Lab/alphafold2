@@ -19,8 +19,6 @@
 *** https://www.markdownguide.org/basic-syntax/#reference-style-links
 -->
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
 <!-- GETTING STARTED -->
 ## Getting Started
 
@@ -42,6 +40,7 @@ Installation of Anaconda is required to load dependencies.
 3. Set up conda environment:
    ```sh
    conda env create -n alphafold -f setup/af2_env.yml
+   conda activate alphafold
    pip3 install --upgrade jax==0.3.25 jaxlib==0.3.25+cuda11.cudnn805 -f https://storage.googleapis.com/jax-releases/jax_cuda_releases.html
    python3 -m pip install /path/to/alphafold/alphafold/
    ```
