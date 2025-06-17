@@ -26,7 +26,7 @@ from alphafold.notebooks import notebook_utils
 
 from typing import Sequence, Optional, Dict, Tuple, MutableMapping, Union
 
-from utils import template_utils, utils
+from run.utils import template_utils, utils
 
 logger = logging.getLogger('features')
 
@@ -530,99 +530,256 @@ def getUniprotMSA(
     return uniprot_msa
 
 
+def get_monomor_single_chain_feats(sequence, raw_inputs, multimer=False, proc_id=None, max_template_date='2100-01-01', rm_template_seq=False):
+    feature_dict = {}
+    
+    # Get sequence features
+    feature_dict.update(pipeline.make_sequence_features(
+        sequence=sequence, description='query', num_res=len(sequence)))
+
+    # Get MSA features
+    msa = getMSA(
+        sequence=sequence, raw_inputs_from_sequence=raw_inputs)
+    feature_dict.update(pipeline.make_msa_features(msas=msa))
+
+    if multimer:
+        uniprot_msa = getUniprotMSA(
+            sequence=sequence)
+        valid_feats = msa_pairing.MSA_FEATURES + (
+            'msa_uniprot_accession_identifiers',
+            'msa_species_identifiers',
+        )
+        all_seq_features = {
+            f'{k}_all_seq': v for
+            k, v in pipeline.make_msa_features(uniprot_msa).items()
+            if k in valid_feats}
+        feature_dict.update(all_seq_features)
+
+    # Get template features
+    new_raw_inputs = copy.deepcopy(raw_inputs[sequence])
+    a3m = new_raw_inputs[0]
+    template = new_raw_inputs[1]
+
+    if template == None:
+        feature_dict.update(
+            notebook_utils.empty_placeholder_template_features(
+                num_templates=0, num_res=len(sequence)))
+    else:
+        temp_feats = make_template(sequence, a3m, template, proc_id, max_template_date, rm_template_seq)
+        empty_temp = False
+        for k in temp_feats:
+            if temp_feats[k].size == 0:
+                empty_temp = True
+                break
+        if empty_temp:
+            feature_dict.update(
+                notebook_utils.empty_placeholder_template_features(
+                    num_templates=0, num_res=len(sequence)))
+        else:
+            feature_dict.update(temp_feats)
+            
+    return feature_dict
+
+
+def get_multimer_single_chain_feats(sequences, raw_inputs, proc_id=None, max_template_date='2100-01-01', rm_template_seq=False):
+    feature_dict = {}
+
+    a3m_lines = pair_msa(sequences, raw_inputs)
+    #print(a3m_lines)
+
+    total_sequence = ''
+    Ls = []
+    for sequence in sequences:
+        total_sequence += sequence
+        Ls.append(len(sequence))
+
+    msa = parsers.parse_a3m(a3m_lines)
+
+    # Sequence features.
+    feature_dict.update(
+        pipeline.make_sequence_features(
+            sequence=total_sequence, description='none', num_res=len(total_sequence)))
+
+    # MSA features.
+    feature_dict.update(
+        pipeline.make_msa_features([msa]))
+
+    # Template features.
+    per_chain_template_feats = []
+    for sequence in sequences:        
+        new_raw_inputs = copy.deepcopy(raw_inputs[sequence])
+        a3m = new_raw_inputs[0]
+        template = new_raw_inputs[1]
+
+        # If no template path for this sequence, add empty template features.
+        if template == None:
+            per_chain_template_feats.append(
+                notebook_utils.empty_placeholder_template_features(
+                    num_templates=0, num_res=len(sequence)))
+        else:
+            # Try to build template features from found templates.
+            temp_feats = make_template(sequence, a3m, template, proc_id, max_template_date, rm_template_seq)
+            empty_temp = False
+            for k in temp_feats:
+                if temp_feats[k].size == 0:
+                    empty_temp = True
+                    break
+            if empty_temp:
+                # If we failed to build any templates, add empty features.
+                per_chain_template_feats.append(
+                    notebook_utils.empty_placeholder_template_features(
+                        num_templates=0, num_res=len(sequence)))
+            else:
+                per_chain_template_feats.append(temp_feats)
+
+    # Determine if we have any non-empty template features.
+    non_empty_temp = sum([template_feats['template_aatype'].shape[0] != 0 for template_feats in per_chain_template_feats]) > 0
+    if not non_empty_temp:
+        # Provide empty template features if no templates found.
+        feature_dict.update(
+            notebook_utils.empty_placeholder_template_features(
+                num_templates=0, num_res=len(total_sequence)))
+    else:
+        # Determine max number of templates found for an individual chain.
+        max_templates = max([template_feats['template_aatype'].shape[0] for template_feats in per_chain_template_feats])
+        for template_feats in per_chain_template_feats:
+            num_temps = template_feats['template_aatype'].shape[0]
+            # Pad all chains who found less templates than the max number of templates.
+            if num_temps < max_templates:
+                shape_fn = lambda x: (max_templates - num_temps, *x[1:])
+                for feat in template_feats:
+                    # Skip 'template_domain_names' because its special.
+                    if feat != 'template_domain_names':
+                        # Pad aatype feature with UNK residue types.
+                        if feat == 'template_aatype':
+                            filler = residue_constants.restype_num * np.ones(shape_fn(template_feats[feat].shape), dtype=template_feats[feat].dtype)
+                            template_feats[feat] = np.concatenate((template_feats[feat], filler), axis=0)
+                        else:
+                            # All other features, pad them with zeros.
+                            filler = np.zeros(shape_fn(template_feats[feat].shape), dtype=template_feats[feat].dtype)
+                            template_feats[feat] = np.concatenate((template_feats[feat], filler), axis=0)
+
+        for k in per_chain_template_feats[0]:
+            # The feature 'template_domain_names' is special because it determines how arrays are reshaped.
+            # We need to have to be the shape of (max_templates,).
+            if k == 'template_domain_names':
+                possible_values = [c[k] for c in per_chain_template_feats if c[k].shape[0] == max_templates]
+                assert len(possible_values) > 0
+                feature_dict[k] = possible_values[0]
+            # These features just don't have axis=1, but they aren't necessary for prediction.
+            elif k not in ['template_sequence', 'template_sum_probs']:
+                # All the other features need to be concatenated along the sequence dimension.
+                feature_dict[k] = np.concatenate([c[k] for c in per_chain_template_feats], axis=1)
+
+    feature_dict['residue_index'] = chain_break(feature_dict['residue_index'], Ls)
+    feature_dict['asym_id'] = np.array(
+        [int(n) for n, l in enumerate(Ls) for _ in range(0, l)])
+
+    return feature_dict
+
+
+def shift_list_left(a, shift=1):
+    if shift > len(a):
+        shift = shift % len(a)
+    return a[shift:] + a[:shift]    
+
+
 def getChainFeatures(
         sequences: Sequence[str],
         raw_inputs: RawInput,
         proc_id = None,
         use_templates: bool = False,
         use_multimer = True,
-        max_template_date='2100-01-01') -> MutableMapping[str, pipeline.FeatureDict]:
+        colon_counts = None,
+        max_template_date='2100-01-01',
+        rm_template_seq = False,
+        permute_templates = False) -> MutableMapping[str, pipeline.FeatureDict]:
     features_for_chain = {}
+
+    if colon_counts is None:
+        colon_counts = [0 for _ in sequences]
 
     if len(sequences) == 1 or use_multimer:
         for sequence_idx, sequence in enumerate(sequences):
-            feature_dict = {}
+            feature_dict = get_monomor_single_chain_feats(sequence, raw_inputs, len(set(sequences)) > 1, proc_id, max_template_date, rm_template_seq)
             
-            # Get sequence features
-            feature_dict.update(pipeline.make_sequence_features(
-                sequence=sequence, description='query', num_res=len(sequence)))
-
-            # Get MSA features
-            msa = getMSA(
-                sequence=sequence, raw_inputs_from_sequence=raw_inputs)
-            feature_dict.update(pipeline.make_msa_features(msas=msa))
-
-            if len(set(sequences)) > 1:
-                uniprot_msa = getUniprotMSA(
-                    sequence=sequence)
-                valid_feats = msa_pairing.MSA_FEATURES + (
-                    'msa_uniprot_accession_identifiers',
-                    'msa_species_identifiers',
-                )
-                all_seq_features = {
-                    f'{k}_all_seq': v for
-                    k, v in pipeline.make_msa_features(uniprot_msa).items()
-                    if k in valid_feats}
-                feature_dict.update(all_seq_features)
-        
-            # Get template features
-            new_raw_inputs = copy.deepcopy(raw_inputs[sequence])
-            a3m = new_raw_inputs[0]
-            template = new_raw_inputs[1]
-
-            if template == None:
-                feature_dict.update(
-                    notebook_utils.empty_placeholder_template_features(
-                        num_templates=0, num_res=len(sequence)))
-            else:
-                temp_feats = make_template(sequence, a3m, template, proc_id, max_template_date)
-                empty_temp = False
-                for k in temp_feats:
-                    if temp_feats[k].size == 0:
-                        empty_temp = True
-                        break
-                if empty_temp:
-                    feature_dict.update(
-                        notebook_utils.empty_placeholder_template_features(
-                            num_templates=0, num_res=len(sequence)))
-                else:
-                    feature_dict.update(temp_feats)
             features_for_chain[
                 protein.PDB_CHAIN_IDS[sequence_idx]] = feature_dict
     else:
-        feature_dict = {}
-
-        a3m_lines = pair_msa(sequences, raw_inputs)
-
-        total_sequence = ''
-        Ls = []
-        for sequence in sequences:
-            total_sequence += sequence
-            Ls.append(len(sequence))
-
-        msa = parsers.parse_a3m(a3m_lines)
-
-        # Sequence features.
-        feature_dict.update(
-            pipeline.make_sequence_features(
-                sequence=total_sequence, description='none', num_res=len(total_sequence)))
-
-        # MSA features.
-        feature_dict.update(
-            pipeline.make_msa_features([msa]))
-
-        # Template features.
-        feature_dict.update(
-            notebook_utils.empty_placeholder_template_features(
-                num_templates=0, num_res=len(sequence)))
-
-        feature_dict['residue_index'] = chain_break(feature_dict['residue_index'], Ls)
-        feature_dict['asym_id'] = np.array(
-            [int(n) for n, l in enumerate(Ls) for _ in range(0, l)])
-
-        features_for_chain[
-                protein.PDB_CHAIN_IDS[0]] = feature_dict
+        if sum(colon_counts) == 0:
+            feature_dict = get_multimer_single_chain_feats(sequences, raw_inputs, proc_id, max_template_date, rm_template_seq)
         
+            features_for_chain[
+                    protein.PDB_CHAIN_IDS[0]] = feature_dict
+        else:
+            for idx, colon in enumerate(colon_counts):
+                if colon == 0:
+                    feature_dict = get_monomor_single_chain_feats(sequences[idx + sum(colon_counts[:idx]): idx + sum(colon_counts[:idx]) + 1], raw_inputs, proc_id, max_template_date, rm_template_seq)
+                    features_for_chain[
+                        protein.PDB_CHAIN_IDS[idx]] = feature_dict
+                else:
+                    feature_dict = get_multimer_single_chain_feats(sequences[idx + sum(colon_counts[:idx]):idx + sum(colon_counts[:idx]) + colon + 1], raw_inputs, proc_id, max_template_date, rm_template_seq)
+                    features_for_chain[
+                        protein.PDB_CHAIN_IDS[idx]] = feature_dict
+
+    if use_templates and permute_templates:
+        # Try to resolve multi-chain templates for multiple identical chains
+        n_unique_seqs = len(set(sequences))
+        if n_unique_seqs != len(sequences):
+            # There are some identical chains
+
+            # Find indicies of each set of unique sequences
+            identical_chains = {}
+            for seq in sequences:
+                if seq in identical_chains:
+                    continue
+                
+                locs = [s == seq for s in sequences]
+                idx = np.where(locs)[0]
+
+                if len(idx) > 1:
+                    # Found multiple chains with sequence
+                    identical_chains[seq] = idx.tolist()
+
+            # Create permutations that need to be applied to identical chains
+            identical_chain_perms = []
+            for ch in identical_chains:
+                ch_id = protein.PDB_CHAIN_IDS[sequences.index(ch)]
+                chain_template_aatype = features_for_chain[ch_id]['template_aatype']
+                template_aatype = np.argmax(chain_template_aatype, -1)
+                identical_templates = (template_aatype[:, None] == template_aatype[None]).sum(-1) == template_aatype.shape[-1]                
+                perm_groups = {
+                    t: list(np.where(identical_templates[t])[0])
+                    for t in range(identical_templates.shape[0])
+                }
+                perm_sightings = {
+                    tuple(p): 0
+                    for p in np.unique(list(perm_groups.values()), axis=0)
+                }
+                chain_perms = []
+                for i in range(len(identical_chains[ch])):
+                    perm = []
+                    for t in range(identical_templates.shape[0]):
+                        if t in perm:
+                            continue
+                        p_t = perm_groups[t]
+                        perm_sightings[tuple(p_t)] += 1
+                        perm += shift_list_left(p_t, perm_sightings[tuple(p_t)] - 1)
+                    chain_perms.append(perm)
+                identical_chain_perms.append(chain_perms)
+
+            # Apply permutations for each identical chain
+            for i, ch in enumerate(identical_chains):
+                for j, ch_idx in enumerate(identical_chains[ch]):
+                    ch_id = protein.PDB_CHAIN_IDS[ch_idx]
+                    feats = features_for_chain[ch_id]
+                    template_feats = {
+                        k: feats[k][identical_chain_perms[i][j]]
+                        for k in feats
+                        if k.startswith('template')
+                    }
+                    features_for_chain[ch_id].update(template_feats)
+
     return features_for_chain
 
 
@@ -762,7 +919,8 @@ def make_template(
         a3m_lines: Sequence[str],
         template_paths: str,
         proc_id = None,
-        max_template_date = '2100-01-01'):
+        max_template_date = '2100-01-01',
+        rm_template_seq = False):
 
     template_featurizer = templates.HhsearchHitFeaturizer(
             mmcif_dir=template_paths,
@@ -784,11 +942,25 @@ def make_template(
     hhsearch_result = hhsearch_pdb70_runner.query(a3m_lines)
     #print(hhsearch_result)
     hhsearch_hits = parsers.parse_hhr(hhsearch_result)
-    #with open('hhsearch_hits.pkl', 'wb') as f:
-    #    pickle.dump(hhsearch_hits[0], f)
+    # with open('hhsearch_hits.pkl', 'wb') as f:
+    #     pickle.dump(hhsearch_hits, f)
+    #print('Saved hhsearch hits')
+    #quit()
     #print(hhsearch_hits)
     templates_result = template_featurizer.get_templates(
         query_sequence=query_sequence,
         hits=hhsearch_hits)
-    #print(templates_result.features['template_domain_names'])
+    #print(templates_result.errors, templates_result.warnings)
+
+    if rm_template_seq:
+        # Set all aatype to gap character (21)
+        new_aatype = np.zeros(templates_result.features['template_aatype'].shape)
+        new_aatype[..., 21] = 1
+        templates_result.features['template_aatype'] = new_aatype
+
+        # Mask all atoms past CB
+        new_atom_mask = np.zeros(templates_result.features['template_all_atom_masks'].shape)
+        new_atom_mask[..., :5] = templates_result.features['template_all_atom_masks'][..., :5]
+        templates_result.features['template_all_atom_masks'] = new_atom_mask
+
     return templates_result.features

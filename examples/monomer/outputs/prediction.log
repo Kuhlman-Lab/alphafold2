@@ -1,0 +1,5 @@
+Running JAX with 1 devices.
+Queries have been parsed. 1 queries found.
+Raw inputs have been generated. Took 12.70 seconds.
+Features for query 0 have been generated. Took 5.160859823226929 seconds.
+Obtained model runner for model_1_ptm.

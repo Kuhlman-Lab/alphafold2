@@ -422,7 +422,7 @@ def mk_hhsearch_db(template_dir: str, proc_id: Optional[int] = None):
         cif_string = f.read()
       cif_fh = StringIO(cif_string)
       parser = MMCIFParser(QUIET=True)
-      structure = parser.get_structure("none", cif_fh)
+      structure = parser.get_structure("temp", cif_fh)
       models = list(structure.get_models())
       if len(models) != 1:
         raise ValueError(

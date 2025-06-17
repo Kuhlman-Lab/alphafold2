@@ -2,6 +2,7 @@
 
 # Standard imports.
 import os
+import pickle
 import sys
 import shutil
 import logging
@@ -16,8 +17,8 @@ sys.path.append('/proj/kuhl_lab/alphafold/')
 
 # Custom imports.
 from run.setup import getAF2Parser, QueryManager, getOutputDir, determine_weight_directory
-from utils.utils import compressed_pickle, full_pickle
-from utils.template_utils import mk_hhsearch_db
+from run.utils.utils import compressed_pickle, full_pickle
+from run.utils.template_utils import mk_hhsearch_db
 
 # Global constants.
 MAX_TEMPLATE_HITS = 20
@@ -33,11 +34,13 @@ DISABLE = False
 
 def af2_init(proc_id: int, arg_file: str, lengths: Sequence[Union[int, Sequence[int]]], fitness_fxn=None):
     print('initialization of process', proc_id)
+    #import os
     
     #print("setting variables")
     os.environ['TF_FORCE_UNITED_MEMORY'] = '1'
     #print("TF_FORCE_UNITED_MEMORY")
-    os.environ['XLA_PYTHON_CLIENT_MEM_FRACTION'] = '4.0'
+    #os.environ['XLA_PYTHON_CLIENT_MEM_FRACTION'] = '4.0'
+    os.environ['XLA_PYTHON_CLIENT_PREALLOCATE'] = 'false'
     #print("XLA_PYTHON_CLIENT_MEM_FRACTION")
     os.environ['TF_XLA_FLAGS'] = '--tf_xla_cpu_global_jit'
     #print("TF_XLA_FLAGS")
@@ -54,12 +57,17 @@ def af2_init(proc_id: int, arg_file: str, lengths: Sequence[Union[int, Sequence[
     #print("importing model")
     from model import (getModelNames, getModelRunner, predictStructure)
     #print("importing utils")
-    from utils.query_utils import generate_random_sequences
+    from run.utils.query_utils import generate_random_sequences
 
     #print("parsing args", arg_file)
     parser = getAF2Parser()
     args = parser.parse_args([f'@{arg_file}'])
     #print("args parsed", args)
+
+    # import inspect
+    # from alphafold.common import protein
+    # print(os.path.abspath(inspect.getfile(protein.from_pdb_string)))
+
     
     if args.use_amber:
         print('Warning: use_amber is currently disabled due to testing. Disabling...')
@@ -172,7 +180,7 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
     parser = getAF2Parser()
     if arg_file is not None:
         args = parser.parse_args([f'@{arg_file}'])
-    else:
+    else: 
         args = parser.parse_args(sys.argv[1:])
     del parser
     
@@ -285,6 +293,7 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
 
     # Precompute query features
     query_features = []
+    #print(queries)
 
     file_id = None
     for query_idx, query in enumerate(queries):
@@ -307,13 +316,20 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
             use_templates=args.use_templates,
             use_multimer=not args.no_multimer_models,
             proc_id=proc_id,
-            max_template_date=args.max_template_date)
+            colon_counts=query[2],
+            max_template_date=args.max_template_date,
+            rm_template_seq=args.rm_template_seq, 
+            permute_templates=args.permute_templates)
+        #with open('chain_feat.pkl', 'wb') as f:
+        #    pickle.dump(features_for_chain, f)
         #quit()
         input_features, initial_guess = getInputFeatures(
             sequences=sequences,
             chain_features=features_for_chain,
             use_multimer=not args.no_multimer_models,
             initial_guess=args.initial_guess)
+        #with open('input_feat.pkl', 'wb') as f:
+        #    pickle.dump(input_features, f)
         
         timings[f'features_{query_idx}'] = time.time() - t_0
         logger.info(f'Features for query {query_idx} have been generated. Took '
@@ -382,7 +398,9 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
                     use_templates=args.use_templates,
                     crop_size=args.max_pad_size,
                     random_seed=seed,
-                    initial_guess=initial_guess)
+                    initial_guess=initial_guess,
+                    dont_mask_template_interchain=args.dont_mask_template_interchain)
+                #print(result)
                 result = result[0]
                 results_list.append(result)
                 timings[f'predict_{model_name}_{seed_idx}'] = (time.time() - t_0)

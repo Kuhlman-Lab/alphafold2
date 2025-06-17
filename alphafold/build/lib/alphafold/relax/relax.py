@@ -12,73 +12,77 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-"""Amber relaxation."""
-from typing import Any, Dict, Sequence, Tuple
+"""Tests for relax."""
+import os
+
+from absl.testing import absltest
 from alphafold.common import protein
-from alphafold.relax import amber_minimize
-from alphafold.relax import utils
+from alphafold.relax import relax
 import numpy as np
+# Internal import (7716).
 
 
-class AmberRelaxation(object):
-  """Amber relaxation."""
+class RunAmberRelaxTest(absltest.TestCase):
 
-  def __init__(self,
-               *,
-               max_iterations: int,
-               tolerance: float,
-               stiffness: float,
-               exclude_residues: Sequence[int],
-               max_outer_iterations: int,
-               use_gpu: bool):
-    """Initialize Amber Relaxer.
+  def setUp(self):
+    super().setUp()
+    self.test_dir = os.path.join(
+        absltest.get_default_test_srcdir(),
+        'alphafold/relax/testdata/')
+    self.test_config = {
+        'max_iterations': 1,
+        'tolerance': 2.39,
+        'stiffness': 10.0,
+        'exclude_residues': [],
+        'max_outer_iterations': 1}
 
-    Args:
-      max_iterations: Maximum number of L-BFGS iterations. 0 means no max.
-      tolerance: kcal/mol, the energy tolerance of L-BFGS.
-      stiffness: kcal/mol A**2, spring constant of heavy atom restraining
-        potential.
-      exclude_residues: Residues to exclude from per-atom restraining.
-        Zero-indexed.
-      max_outer_iterations: Maximum number of violation-informed relax
-       iterations. A value of 1 will run the non-iterative procedure used in
-       CASP14. Use 20 so that >95% of the bad cases are relaxed. Relax finishes
-       as soon as there are no violations, hence in most cases this causes no
-       slowdown. In the worst case we do 20 outer iterations.
-      use_gpu: Whether to run on GPU.
-    """
+  def test_process(self):
+    amber_relax = relax.AmberRelaxation(**self.test_config)
 
-    self._max_iterations = max_iterations
-    self._tolerance = tolerance
-    self._stiffness = stiffness
-    self._exclude_residues = exclude_residues
-    self._max_outer_iterations = max_outer_iterations
-    self._use_gpu = use_gpu
+    with open(os.path.join(self.test_dir, 'model_output.pdb')) as f:
+      test_prot = protein.from_pdb_string(f.read())
+    pdb_min, debug_info, num_violations = amber_relax.process(prot=test_prot)
 
-  def process(self, *,
-              prot: protein.Protein
-              ) -> Tuple[str, Dict[str, Any], Sequence[float]]:
-    """Runs Amber relax on a prediction, adds hydrogens, returns PDB string."""
-    out = amber_minimize.run_pipeline(
-        prot=prot, max_iterations=self._max_iterations,
-        tolerance=self._tolerance, stiffness=self._stiffness,
-        exclude_residues=self._exclude_residues,
-        max_outer_iterations=self._max_outer_iterations,
-        use_gpu=self._use_gpu)
-    min_pos = out['pos']
-    start_pos = out['posinit']
-    rmsd = np.sqrt(np.sum((start_pos - min_pos)**2) / start_pos.shape[0])
-    debug_data = {
-        'initial_energy': out['einit'],
-        'final_energy': out['efinal'],
-        'attempts': out['min_attempts'],
-        'rmsd': rmsd
-    }
-    min_pdb = out['min_pdb']
-    min_pdb = utils.overwrite_b_factors(min_pdb, prot.b_factors)
-    utils.assert_equal_nonterminal_atom_types(
-        protein.from_pdb_string(min_pdb).atom_mask,
-        prot.atom_mask)
-    violations = out['structural_violations'][
-        'total_per_residue_violations_mask'].tolist()
-    return min_pdb, debug_data, violations
+    self.assertCountEqual(debug_info.keys(),
+                          set({'initial_energy', 'final_energy',
+                               'attempts', 'rmsd'}))
+    self.assertLess(debug_info['final_energy'], debug_info['initial_energy'])
+    self.assertGreater(debug_info['rmsd'], 0)
+
+    prot_min = protein.from_pdb_string(pdb_min)
+    # Most protein properties should be unchanged.
+    np.testing.assert_almost_equal(test_prot.aatype, prot_min.aatype)
+    np.testing.assert_almost_equal(test_prot.residue_index,
+                                   prot_min.residue_index)
+    # Atom mask and bfactors identical except for terminal OXT of last residue.
+    np.testing.assert_almost_equal(test_prot.atom_mask[:-1, :],
+                                   prot_min.atom_mask[:-1, :])
+    np.testing.assert_almost_equal(test_prot.b_factors[:-1, :],
+                                   prot_min.b_factors[:-1, :])
+    np.testing.assert_almost_equal(test_prot.atom_mask[:, :-1],
+                                   prot_min.atom_mask[:, :-1])
+    np.testing.assert_almost_equal(test_prot.b_factors[:, :-1],
+                                   prot_min.b_factors[:, :-1])
+    # There are no residues with violations.
+    np.testing.assert_equal(num_violations, np.zeros_like(num_violations))
+
+  def test_unresolved_violations(self):
+    amber_relax = relax.AmberRelaxation(**self.test_config)
+    with open(os.path.join(self.test_dir,
+                                 'with_violations_casp14.pdb')) as f:
+      test_prot = protein.from_pdb_string(f.read())
+    _, _, num_violations = amber_relax.process(prot=test_prot)
+    exp_num_violations = np.array(
+        [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1, 1, 1,
+         1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0,
+         0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
+         0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1, 0,
+         0, 0, 0, 0])
+    # Check no violations were added. Can't check exactly due to stochasticity.
+    self.assertTrue(np.all(np.array(num_violations) <= exp_num_violations))
+
+
+if __name__ == '__main__':
+  absltest.main()

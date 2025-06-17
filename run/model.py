@@ -11,6 +11,7 @@ from alphafold.data import pipeline
 import tensorflow as tf
 import random
 import sys
+import pickle
 import numpy as np
 from typing import Tuple, Sequence, Optional, Dict, Mapping, Any
 
@@ -342,7 +343,8 @@ def predictStructure(
         random_seed: int = random.randrange(sys.maxsize),
         crop_size: Optional[int] = None,
         feature_dict_list = None,
-        initial_guess=None
+        initial_guess=None,
+        dont_mask_template_interchain=False,
         ) -> Dict[str, np.ndarray]:
     
     if feature_dict_list:
@@ -410,6 +412,16 @@ def predictStructure(
             results.append(result)
 
     else:
+        # Update model config if using initial guess
+        if initial_guess is not None:
+            num_seqs = int(feature_dict['num_alignments'][0])
+            num_templates = model_runner.config.data.eval.max_templates
+            model_runner.config.data.common.max_extra_msa = num_seqs + num_templates
+            model_runner.config.data.eval.max_msa_clusters = num_seqs + num_templates
+
+        #with open('raw_feats.pkl', 'wb') as f:
+        #    pickle.dump([feature_dict, initial_guess], f)
+
         processed_feature_dict = model_runner.process_features(
             feature_dict, random_seed=random_seed)
 
@@ -420,6 +432,15 @@ def predictStructure(
 
         if crop_size:
             processed_feature_dict = batch_input(processed_feature_dict, model_runner, model_name, crop_size, use_templates, run_multimer)
+
+        #with open('processed_feats.pkl', 'wb') as f:
+        #    pickle.dump([processed_feature_dict, initial_guess], f)
+
+        if use_templates and run_multimer:
+            if not dont_mask_template_interchain:
+                processed_feature_dict["mask_template_interchain"] = True
+            else:
+                processed_feature_dict["mask_template_interchain"] = False
 
         prediction = model_runner.predict(
             processed_feature_dict, random_seed=random_seed, initial_guess=initial_guess)

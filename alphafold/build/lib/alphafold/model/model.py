@@ -167,8 +167,8 @@ class RunModel:
       and tolerance.
     """
     self.init_params(feat)
-    logging.info('Running predict with shape(feat) = %s',
-                 tree.map_structure(lambda x: x.shape, feat))
+    #logging.info('Running predict with shape(feat) = %s',
+    #             tree.map_structure(lambda x: x.shape, feat))
     result = self.apply(self.params, jax.random.PRNGKey(random_seed), feat, initial_guess)
     
     # This block is to ensure benchmark timings are accurate. Some blocking is

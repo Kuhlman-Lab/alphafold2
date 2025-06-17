@@ -1,5 +1,4 @@
 LICENSE
-README.md
 setup.py
 alphafold/__init__.py
 alphafold.egg-info/PKG-INFO
@@ -78,7 +77,6 @@ alphafold/notebooks/notebook_utils_test.py
 alphafold/relax/__init__.py
 alphafold/relax/amber_minimize.py
 alphafold/relax/amber_minimize_test.py
-alphafold/relax/cleanup.py
 alphafold/relax/cleanup_test.py
 alphafold/relax/relax.py
 alphafold/relax/relax_test.py

@@ -149,9 +149,16 @@ def _clean_and_validate_single_query(
     # Clean filename by removing all parent directories.
     clean_filename = os.path.basename(filename)
 
+    # Check if ':' in sequences. If so, we want to combine those chains.
+    colon_counts = [seq.count(':') for seq in sequences]
+    if sum(colon_counts) > 0 and oligomer != '':
+        raise ValueError(f'Cannot do chain combining with a provided oligomeric state. Duplicate sequences to achieve same goal.')
+    new_sequences = []
+    [new_sequences.extend(seq.split(':')) for seq in sequences]
+
     # Remove whitespaces, tabs, and end lines and uppercase all sequences.
     clean_sequences = []
-    for sequence in sequences:
+    for sequence in new_sequences:
         clean_sequence = sequence.translate(
             str.maketrans('', '', ' \n\t')).upper()
         aatypes = set(residue_constants.restypes) # 20 canonical aatypes.
@@ -228,7 +235,7 @@ def _clean_and_validate_single_query(
     
     # If there is only one sequence, then the query is a monomer query.
     # If there is more than one sequence, then the query is a multimer query.
-    return (clean_filename, clean_sequences)
+    return (clean_filename, clean_sequences, colon_counts)
 
     
 def detect_duplicate_queries(
@@ -246,9 +253,9 @@ def detect_duplicate_queries(
         else:
             dupe = False
 
-            # If the sequences of the queries are the same, then its a dupe.
+            # If the sequences of the queries are the same and colon counts are same, then its a dupe.
             for old_query in clean_query_list:
-                if old_query[1] == query[1]:
+                if old_query[1] == query[1] and old_query[2] == query[2]:
                     dupe = True
 
             if dupe == False:

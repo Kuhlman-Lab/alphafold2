@@ -1,0 +1,9 @@
+Running JAX with 1 devices.
+Queries have been parsed. 1 queries found.
+Raw inputs have been generated. Took 5.46 seconds.
+Features for query 0 have been generated. Took 11.06079363822937 seconds.
+Obtained model runner for model_1_ptm.
+Structure prediction for model_1_ptm, seed 0 is completed. Took 87.13050627708435 seconds.
+Unrelaxed protein pdb has been written.
+Results have been pickled and compressed.
+Overall prediction process took 106.86078000068665 seconds.

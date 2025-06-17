@@ -189,6 +189,19 @@ def getAF2Parser() -> FileArgumentParser:
                          type=str,
                          help='Path to directory containing custom .pdb files '
                          'to be used as templates for AF2.')
+    
+    parser.add_argument('--rm_template_seq',
+                        action='store_true',
+                        help='Remove the sequences of the templates.')
+
+    parser.add_argument("--dont_mask_template_interchain",
+                        action="store_true",
+                        help="If provided, enables using interchain template info.")
+    parser.add_argument("--permute_templates",
+                        action="store_true",
+                        help="If provided and the query has multiple copies of the same"
+                        "chain, templates will be checked for multiple copies and "
+                        "potentially permuted.")
 
     # Model Control Arguments
     parser.add_argument('--use_ptm',

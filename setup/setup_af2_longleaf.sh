@@ -39,5 +39,6 @@ else
 fi
 
 conda config --add envs_dirs /proj/kuhl_lab/alphafold/setup/conda_env
+conda config --add envs_dirs /proj/kuhl_lab/.conda/envs
 
 echo "Set up script has completed. Make sure to 'source ~/.bashrc' before attempting to run AF2."

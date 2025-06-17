@@ -30,6 +30,7 @@ from alphafold.model import utils
 import haiku as hk
 import jax
 import jax.numpy as jnp
+#from jax.experimental.host_callback import call
 
 
 def softmax_cross_entropy(logits, labels):
@@ -334,6 +335,7 @@ class AlphaFold(hk.Module):
           start = recycle_idx * num_ensemble
           size = num_ensemble
           return jax.lax.dynamic_slice_in_dim(x, start, size, axis=0)
+        #call(lambda x: [print(f'{k}: {v.shape}') for k, v in x.items()][0], batch)
         ensembled_batch = jax.tree_map(slice_recycle_idx, batch)
       else:
         num_ensemble = batch_size
