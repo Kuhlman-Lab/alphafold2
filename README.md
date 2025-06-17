@@ -121,15 +121,15 @@ Other options
 
 To make a prediction, provide the sequences in the input CSV file. Set the options in the af2.flags file. Then, run the commands:
 ```sh
-   conda activate alphafold
-   python /path/to/alphafold/run/run_af2.py @af2.flags
+conda activate alphafold
+python /path/to/alphafold/run/run_af2.py @af2.flags
    ```
 
 Running the code will produce an outputs directory containing PDB files with predicted structures and .pbz2 files with compressed information about the predictions such as confidence metrics.
 To generate pLDDT plots and PAE heatmaps, navigate to a directory containing .pbz2 files and run the command:
 ```sh
-   conda activate alphafold
-   python /path/to/alphafold/run/plots.py
+conda activate alphafold
+python /path/to/alphafold/run/plots.py
    ```
 
 ## Specific examples
@@ -138,7 +138,7 @@ Specify your AF2 options in af2.flags.
 
 To turn off MSA generation:  
 ```sh
-   --msa_mode single_sequence  
+--msa_mode single_sequence  
    ```
 
 To use precomputed MSA:  
