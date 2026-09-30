@@ -144,7 +144,7 @@ def _chain_end(atom_index, end_resname, chain_name, residue_index) -> str:
           f'{chain_name:>1}{residue_index:>4}')
 
 
-def to_pdb(prot: Protein) -> str:
+def to_pdb(prot: Protein, chain_names=None) -> str:
   """Converts a `Protein` instance to a PDB string.
 
   Args:
@@ -171,11 +171,15 @@ def to_pdb(prot: Protein) -> str:
 
   # Construct a mapping from chain integer indices to chain ID strings.
   chain_ids = {}
-  for i in np.unique(chain_index):  # np.unique gives sorted output.
-    if i >= PDB_MAX_CHAINS:
-      raise ValueError(
-          f'The PDB format supports at most {PDB_MAX_CHAINS} chains.')
-    chain_ids[i] = PDB_CHAIN_IDS[i]
+  if chain_names!=None:
+      for i in np.unique(chain_index):  # np.unique gives sorted output.
+          chain_ids[i] = chain_names[i]
+  else:
+      for i in np.unique(chain_index):  # np.unique gives sorted output.
+        if i >= PDB_MAX_CHAINS:
+          raise ValueError(
+              f'The PDB format supports at most {PDB_MAX_CHAINS} chains.')
+        chain_ids[i] = PDB_CHAIN_IDS[i]
 
   pdb_lines.append('MODEL     1')
   atom_index = 1
