@@ -11,9 +11,9 @@ from typing import Sequence, Union, Optional
 from functools import partial
 
 # Update PATH.
-sys.path.append('~/.miniconda3/envs/af2/lib/python3.7/site-packages')
-sys.path.append('../content/alphafold')
-sys.path.append('/proj/kuhl_lab/alphafold/')
+#sys.path.append('~/.miniconda3/envs/af2/lib/python3.7/site-packages')
+#sys.path.append('../content/alphafold')
+#sys.path.append('/proj/kuhl_lab/alphafold/')
 
 # Custom imports.
 from run.setup import getAF2Parser, QueryManager, getOutputDir, determine_weight_directory
@@ -400,7 +400,6 @@ def af2(sequences: Optional[Sequence[Sequence[str]]] = [],
                     random_seed=seed,
                     initial_guess=initial_guess,
                     dont_mask_template_interchain=args.dont_mask_template_interchain)
-                #print(result)
                 result = result[0]
                 results_list.append(result)
                 timings[f'predict_{model_name}_{seed_idx}'] = (time.time() - t_0)
